@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.LucasGruber.Veyra</id>
+  <name>Veyra</name>
+  <summary>Your vault. One shortcut away</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-only</project_license>
+  <developer id="io.github.lucasgruber">
+    <name>Veyra contributors</name>
+  </developer>
+  <description>
+    <p>Veyra is a Linux desktop client for self-hosted Vaultwarden servers, with a keyboard-first interface and a dedicated Quick Access window.</p>
+    <p>Security-sensitive operations belong to the native Rust backend. Platform integration and supported server features are documented in the project repository.</p>
+  </description>
+  <launchable type="desktop-id">io.github.LucasGruber.Veyra.desktop</launchable>
+  <url type="homepage">https://github.com/Lucas-Gruber/Veyra</url>
+  <url type="bugtracker">https://github.com/Lucas-Gruber/Veyra/issues</url>
+  <url type="vcs-browser">https://github.com/Lucas-Gruber/Veyra</url>
+  <provides>
+    <binary>veyra</binary>
+  </provides>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.0" date="2026-10-26" type="development">
+      <description><p>Initial development version. See project documentation for verified features and compatibility limitations.</p></description>
+    </release>
+  </releases>
+</component>

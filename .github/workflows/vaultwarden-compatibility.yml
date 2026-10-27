@@ -1,0 +1,82 @@
+name: Vaultwarden compatibility
+on:
+  workflow_call:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 4 * * *'
+permissions:
+  contents: read
+concurrency:
+  group: vaultwarden-compatibility-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+jobs:
+  versions:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.versions.outputs.matrix }}
+    steps:
+      - name: Resolve latest stable upstream release to an immutable image
+        id: versions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          latest_tag=$(gh api repos/dani-garcia/vaultwarden/releases/latest --jq .tag_name)
+          [[ "$latest_tag" =~ ^v?([0-9]+\.[0-9]+\.[0-9]+)$ ]] || { echo 'Unsupported upstream release tag'; exit 1; }
+          latest_version="${BASH_REMATCH[1]}"
+          image="ghcr.io/dani-garcia/vaultwarden:$latest_version"
+          docker pull "$image"
+          latest_digest=$(docker image inspect "$image" --format '{{index .RepoDigests 0}}')
+          [[ "$latest_digest" =~ ^ghcr.io/dani-garcia/vaultwarden@sha256:[0-9a-f]{64}$ ]] || { echo 'No verified upstream image digest'; exit 1; }
+          export LATEST_VERSION="$latest_version" LATEST_DIGEST="$latest_digest"
+          node <<'JS' >> "$GITHUB_OUTPUT"
+          const baseline = 'ghcr.io/dani-garcia/vaultwarden:1.37.4@sha256:efb3cde962015fcc036b2ea625242248611943b27212ebf4392841fb30fad055'
+          const include = [{ label: 'baseline-1.37.4', version: '1.37.4', image: baseline }]
+          if (process.env.LATEST_VERSION !== '1.37.4' || process.env.LATEST_DIGEST.split('@')[1] !== baseline.split('@')[1]) include.push({label: `latest-${process.env.LATEST_VERSION}`, version: process.env.LATEST_VERSION, image: process.env.LATEST_DIGEST})
+          console.log(`matrix=${JSON.stringify({include})}`)
+          JS
+          echo "Latest stable tested: $latest_version ($latest_digest)" >> "$GITHUB_STEP_SUMMARY"
+  integration:
+    needs: versions
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.versions.outputs.matrix) }}
+    name: Real vault tests (${{ matrix.label }})
+    services:
+      vaultwarden:
+        image: ${{ matrix.image }}
+        env:
+          SIGNUPS_ALLOWED: 'true'
+          SIGNUPS_VERIFY: 'false'
+          LOGIN_RATELIMIT_MAX_BURST: '1000'
+          LOGIN_RATELIMIT_SECONDS: '1'
+          WEB_VAULT_ENABLED: 'false'
+        ports:
+          - 127.0.0.1:8222:80
+        options: --cap-drop=ALL --security-opt=no-new-privileges --memory=512m
+    env:
+      CARGO_BUILD_JOBS: 3
+      VEYRA_TEST_SERVER_VERSION: ${{ matrix.version }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install native test prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev librsvg2-dev python3-venv
+      - run: rustup show active-toolchain
+      - name: Seed disposable accounts with independent crypto fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/veyra-fixture-venv"
+          "$RUNNER_TEMP/veyra-fixture-venv/bin/pip" install -r tests/integration/requirements.txt
+          "$RUNNER_TEMP/veyra-fixture-venv/bin/python" tests/integration/seed-vaultwarden.py --server-url http://127.0.0.1:8222 --server-version "$VEYRA_TEST_SERVER_VERSION" --output "$RUNNER_TEMP/veyra-fixtures.json"
+      - name: Verify real authentication, decryption, sync and lock
+        env:
+          VEYRA_TEST_FIXTURE_FILE: ${{ runner.temp }}/veyra-fixtures.json
+        run: cargo test --locked --manifest-path src-tauri/Cargo.toml vaultwarden::tests::actual_vaultwarden_ -- --ignored
+      - name: Delete ephemeral fixture credentials
+        if: always()
+        run: rm -f -- "$RUNNER_TEMP/veyra-fixtures.json"

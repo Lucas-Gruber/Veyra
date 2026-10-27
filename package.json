@@ -1,0 +1,43 @@
+{
+  "name": "veyra",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Your vault. One shortcut away. A Linux-first Vaultwarden client.",
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": "^24.15.0 || >=26.0.0"
+  },
+  "scripts": {
+    "dev": "nuxt dev --host 127.0.0.1 --port 3000",
+    "build": "nuxt generate",
+    "generate": "nuxt generate",
+    "typecheck": "nuxt typecheck",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "tauri": "tauri",
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build --no-bundle",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@lucide/vue": "1.61.0",
+    "@nuxt/ui": "4.12.0",
+    "@pinia/nuxt": "1.0.3",
+    "@tauri-apps/api": "2.12.4",
+    "nuxt": "4.6.2",
+    "pinia": "4.1.0",
+    "tailwindcss": "4.3.3"
+  },
+  "devDependencies": {
+    "@nuxt/eslint": "1.17.0",
+    "@playwright/test": "1.64.1",
+    "@tauri-apps/cli": "2.12.4",
+    "eslint": "10.13.0",
+    "typescript": "6.0.3",
+    "vitest": "5.0.5",
+    "vue-tsc": "3.3.13"
+  }
+}

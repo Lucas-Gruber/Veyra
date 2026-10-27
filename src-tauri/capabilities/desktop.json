@@ -1,0 +1,25 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "desktop",
+  "description": "Local Veyra windows can use authenticated, scoped vault commands and session events. No shell, filesystem, generic clipboard or opener IPC is exposed.",
+  "windows": [
+    "main",
+    "quick-access"
+  ],
+  "permissions": [
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "allow-session-status",
+    "allow-unlock-demo",
+    "allow-lock-vault",
+    "allow-show-quick-access",
+    "allow-hide-quick-access",
+    "allow-copy-field",
+    "allow-reveal-field",
+    "allow-open-website",
+    "allow-open-main-item",
+    "allow-login-vault",
+    "allow-list-metadata",
+    "allow-sync-vault"
+  ]
+}

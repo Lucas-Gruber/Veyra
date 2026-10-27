@@ -1,0 +1,52 @@
+{
+  "id": "io.github.LucasGruber.Veyra",
+  "runtime": "org.gnome.Platform",
+  "runtime-version": "51",
+  "sdk": "org.gnome.Sdk",
+  "command": "veyra",
+  "default-branch": "stable",
+  "separate-locales": false,
+  "finish-args": [
+    "--share=network",
+    "--socket=wayland",
+    "--socket=fallback-x11",
+    "--share=ipc",
+    "--device=dri"
+  ],
+  "modules": [
+    {
+      "name": "veyra",
+      "buildsystem": "simple",
+      "build-commands": [
+        "install -Dm755 veyra /app/bin/veyra",
+        "install -Dm644 io.github.LucasGruber.Veyra.desktop /app/share/applications/io.github.LucasGruber.Veyra.desktop",
+        "install -Dm644 io.github.LucasGruber.Veyra.metainfo.xml /app/share/metainfo/io.github.LucasGruber.Veyra.metainfo.xml",
+        "install -Dm644 io.github.LucasGruber.Veyra.svg /app/share/icons/hicolor/scalable/apps/io.github.LucasGruber.Veyra.svg",
+        "install -Dm644 LICENSE /app/share/licenses/io.github.LucasGruber.Veyra/LICENSE"
+      ],
+      "sources": [
+        {
+          "type": "file",
+          "path": "../../src-tauri/target/release/veyra",
+          "dest-filename": "veyra"
+        },
+        {
+          "type": "file",
+          "path": "io.github.LucasGruber.Veyra.desktop"
+        },
+        {
+          "type": "file",
+          "path": "io.github.LucasGruber.Veyra.metainfo.xml"
+        },
+        {
+          "type": "file",
+          "path": "../../public/io.github.LucasGruber.Veyra.svg"
+        },
+        {
+          "type": "file",
+          "path": "../../LICENSE"
+        }
+      ]
+    }
+  ]
+}

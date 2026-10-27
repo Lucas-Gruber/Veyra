@@ -1,0 +1,6 @@
+# Test-only cryptography. Production vault crypto is the pinned official Rust SDK.
+argon2-cffi==25.1.0
+argon2-cffi-bindings==26.1.0
+cffi==2.1.1
+cryptography==50.0.0
+pycparser==3.0

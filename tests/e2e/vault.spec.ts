@@ -1,0 +1,83 @@
+import { expect, test } from '@playwright/test'
+
+test('demo metadata is hidden until explicitly opened and removed on lock', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.getByRole('button', { name: 'Explore demo vault' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /GitHub/ })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Explore demo vault' }).click()
+  const search = page.getByRole('textbox', { name: 'Search your vault' })
+  await search.fill('github')
+  await expect(page.locator('.item-row')).toHaveCount(1)
+  await expect(page.locator('.item-row')).toContainText('GitHub')
+  await search.fill('no-such-service-veyra')
+  await expect(page.locator('.item-row')).toHaveCount(0)
+  await page.keyboard.press('Control+l')
+  await expect(page.getByRole('button', { name: 'Explore demo vault' })).toBeVisible()
+  await expect(page.locator('.item-row')).toHaveCount(0)
+  await expect(page.locator('.detail-pane')).toHaveCount(0)
+})
+
+test('Quick Access supports keyboard search, selection, actions and dismissal', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Explore demo vault' }).click()
+  await page.keyboard.press('Control+Alt+Space')
+  const dialog = page.getByRole('dialog', { name: 'Quick Access' })
+  await expect(dialog).toBeVisible()
+  const search = dialog.getByRole('combobox', { name: 'Search vault' })
+  await expect(search).toBeFocused()
+  await search.fill('git')
+  await expect(dialog.getByRole('option', { name: /GitHub/ })).toBeVisible()
+  await page.keyboard.press('Tab')
+  await expect(dialog.getByRole('button', { name: /Copy password/ })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(search).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
+  await page.keyboard.press('Control+l')
+  await page.keyboard.press('Control+Alt+Space')
+  await expect(page.getByRole('dialog', { name: 'Quick Access' })).toBeVisible()
+  await expect(page.getByRole('option')).toHaveCount(0)
+})
+
+test('only appearance preferences persist, never vault entries or revealed values', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Explore demo vault' }).click()
+  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  const settings = page.getByRole('dialog', { name: 'Settings' })
+  await settings.getByRole('button', { name: 'Light', exact: true }).click()
+  await expect(page.locator('.veyra-app')).toHaveClass(/theme-light/)
+  await settings.getByRole('button', { name: 'Close settings' }).click()
+  const storage = await page.evaluate(() => Object.fromEntries(Object.entries(localStorage)))
+  expect(Object.keys(storage).filter(key => key.startsWith('veyra:'))).toEqual(['veyra:preferences'])
+  expect(JSON.stringify(storage)).not.toMatch(/alex@|github|demo-only|123456/i)
+  await page.reload()
+  await expect(page.locator('.veyra-app')).toHaveClass(/theme-light/)
+  await expect(page.getByRole('button', { name: 'Explore demo vault' })).toBeVisible()
+})
+
+test('standalone Quick Access honors the same locked state', async ({ page }) => {
+  await page.goto('/?window=quick')
+  const dialog = page.getByRole('dialog', { name: 'Quick Access' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByRole('option')).toHaveCount(0)
+  await dialog.getByRole('button', { name: 'Explore demo vault' }).click()
+  await expect(dialog.getByRole('combobox', { name: 'Search vault' })).toBeFocused()
+  await expect(dialog.getByRole('option')).toHaveCount(8)
+})
+
+test('a rejected clipboard action keeps Quick Access open with its error', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: () => Promise.reject(new Error('Permission denied in test')) },
+      configurable: true,
+    })
+  })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Explore demo vault' }).click()
+  await page.keyboard.press('Control+Alt+Space')
+  const dialog = page.getByRole('dialog', { name: 'Quick Access' })
+  await dialog.getByRole('combobox', { name: 'Search vault' }).fill('github')
+  await page.keyboard.press('Enter')
+  await expect(dialog).toBeVisible()
+  await expect(page.getByRole('status')).toContainText('Permission denied in test')
+})
