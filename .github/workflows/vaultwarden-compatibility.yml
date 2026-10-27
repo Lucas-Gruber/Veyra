@@ -2,8 +2,6 @@ name: Vaultwarden compatibility
 on:
   workflow_call:
   workflow_dispatch:
-  schedule:
-    - cron: '17 4 * * *'
 permissions:
   contents: read
 concurrency:
@@ -55,6 +53,8 @@ jobs:
           WEB_VAULT_ENABLED: 'false'
         ports:
           - 127.0.0.1:8222:80
+        volumes:
+          - /data
         options: --cap-drop=ALL --security-opt=no-new-privileges --memory=512m
     env:
       CARGO_BUILD_JOBS: 3

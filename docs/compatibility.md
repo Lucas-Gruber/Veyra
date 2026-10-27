@@ -10,7 +10,7 @@ The API may add response fields; parsers can ignore unrelated fields while requi
 
 ## Update detection
 
-`.github/workflows/vaultwarden-compatibility.yml` tests the pinned baseline and resolves the latest **stable** upstream GitHub release to an immutable container digest. It runs daily, manually and as part of CI/release validation. When latest matches both the baseline version and image digest, one job covers both. Retagged images are tested separately. Each job creates fresh synthetic PBKDF2 and Argon2 accounts in a disposable local server, then exercises real authentication, field decryption, sync, wrong-password rejection and locking.
+`.github/workflows/vaultwarden-compatibility.yml` tests the pinned baseline and resolves the latest **stable** upstream GitHub release to an immutable container digest. It runs through the daily CI schedule, manually and as part of push/release validation. When latest matches both the baseline version and image digest, one job covers both. Retagged images are tested separately. Each job creates fresh synthetic PBKDF2 and Argon2 accounts in a disposable local server, then exercises real authentication, field decryption, sync, wrong-password rejection and locking.
 
 A failing matrix blocks the release workflow. It can indicate either a client regression, an upstream API/crypto change, or a test-fixture registration change; inspect the failing step before assigning the cause. A workflow file alone does not establish that the remote scheduled job has run. `docs/validation.md` records only actual executions.
 

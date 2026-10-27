@@ -30,3 +30,7 @@ Browser IPC fixtures validate UI behavior only; they are not evidence of real au
 The pinned reference image is `ghcr.io/dani-garcia/vaultwarden:1.37.4@sha256:efb3cde962015fcc036b2ea625242248611943b27212ebf4392841fb30fad055`. Current tests use the official GPL SDK commit recorded in Cargo.toml/Cargo.lock. Future compatibility is checked by the daily baseline/latest-stable workflow, not guaranteed by a version range.
 
 The failed Cargo audit remains a release blocker. No advisory suppression or release tag is justified by these results. CI is arranged so independent build/packaging checks can still run while publication requires all gates to succeed.
+
+## First remote CI diagnosis
+
+The initial main push reached GitHub Actions. The runner correctly rejected node-forge 1.4.1 because it was published at 2026-10-27 04:44:07 UTC and the package manager enforces a 24-hour minimum release age. The security patch stays pinned; the age check is not bypassed. It becomes eligible after 2026-10-28 04:44:07 UTC. The daily CI is scheduled after that cutoff and also reruns baseline/latest Vaultwarden tests. A separate service-start failure was diagnosed as missing `/data` volume and corrected with a disposable anonymous service volume.
