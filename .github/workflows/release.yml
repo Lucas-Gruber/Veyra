@@ -23,10 +23,6 @@ jobs:
         with:
           name: veyra-linux-flatpak
           path: release-artifacts
-      - name: Validate release identity
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: node scripts/check-release.mjs
       - name: Prepare source archive with Rust dependencies
         run: |
           set -euo pipefail
@@ -40,7 +36,8 @@ jobs:
           root=pathlib.Path(sys.argv[1]); config=root/'.cargo/config.toml'
           config.write_text(config.read_text().replace(str(root/'rust-vendor'), 'rust-vendor'))
           PY
-          tar -czf "release-artifacts/Veyra-${GITHUB_REF_NAME#v}-source.tar.gz" -C "$source_dir" .
+          source_epoch=$(git log -1 --format=%ct)
+          tar --sort=name --mtime="@$source_epoch" --owner=0 --group=0 --numeric-owner -czf "release-artifacts/Veyra-${GITHUB_REF_NAME#v}-source.tar.gz" -C "$source_dir" .
           cd release-artifacts
           sha256sum ./*.flatpak ./*-source.tar.gz > SHA256SUMS
       - name: Publish only successful tagged builds
@@ -53,5 +50,20 @@ jobs:
           args=(--verify-tag --title "Veyra $RELEASE_TAG" --generate-notes)
           # Development metadata remains a prerelease even with a MAJOR.MINOR.PATCH tag.
           development=$(python3 -c "import xml.etree.ElementTree as E; print(E.parse('packaging/flatpak/io.github.LucasGruber.Veyra.metainfo.xml').find('releases/release').get('type') == 'development')")
-          if [[ "$RELEASE_TAG" == *-* || "$development" == True ]]; then args+=(--prerelease); fi
-          gh release create "$RELEASE_TAG" release-artifacts/*.flatpak release-artifacts/*-source.tar.gz release-artifacts/SHA256SUMS "${args[@]}"
+          prerelease=false
+          if [[ "$RELEASE_TAG" == *-* || "$development" == True ]]; then prerelease=true; args+=(--prerelease); fi
+          metadata="$RUNNER_TEMP/veyra-release.json"
+          errors="$RUNNER_TEMP/veyra-release-errors.txt"
+          if gh release view "$RELEASE_TAG" --json isDraft > "$metadata" 2> "$errors"; then
+            is_draft=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["isDraft"])' "$metadata")
+            [[ "$is_draft" == True ]] || { echo 'Refusing to modify an already published release.' >&2; exit 1; }
+            # Existing artifacts are never overwritten. A partial previous upload
+            # needs review before retrying; the release remains a draft on failure.
+            gh release upload "$RELEASE_TAG" release-artifacts/*.flatpak release-artifacts/*-source.tar.gz release-artifacts/SHA256SUMS
+            gh release edit "$RELEASE_TAG" --draft=false --prerelease="$prerelease"
+          elif grep -Fqi 'release not found' "$errors"; then
+            gh release create "$RELEASE_TAG" release-artifacts/*.flatpak release-artifacts/*-source.tar.gz release-artifacts/SHA256SUMS "${args[@]}"
+          else
+            cat "$errors" >&2
+            exit 1
+          fi

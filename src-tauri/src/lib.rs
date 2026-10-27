@@ -1,6 +1,7 @@
 mod clipboard;
 mod demo;
 mod session;
+mod updates;
 mod urls;
 mod vaultwarden;
 
@@ -505,7 +506,11 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(Session::default())
         .manage(ClipboardService::default())
+        .manage(updates::UpdateService::default())
         .invoke_handler(tauri::generate_handler![
+            updates::app_info,
+            updates::check_for_updates,
+            updates::open_release_page,
             session_status,
             login_vault,
             unlock_demo,

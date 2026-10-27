@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Veyra",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.1",
   "identifier": "io.github.LucasGruber.Veyra",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -38,7 +38,7 @@
     ],
     "category": "Utility",
     "shortDescription": "Your vault. One shortcut away.",
-    "longDescription": "A Linux-first Vaultwarden client. This development milestone demonstrates the desktop experience using synthetic data only.",
+    "longDescription": "A Linux-first, read-only Vaultwarden client with keyboard-first Quick Access. This early preview supports personal vaults; see documented compatibility and security limitations.",
     "icon": [
       "icons/icon.png"
     ]

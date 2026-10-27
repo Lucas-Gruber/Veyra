@@ -5,6 +5,7 @@ import type { ItemKind, SessionStatus } from '~/types/vault'
 
 const vault = useVault()
 const prefs = usePreferences()
+const appUpdates = useAppUpdates()
 const activeView = ref('All items')
 const query = ref('')
 const selectedId = ref('github')
@@ -79,9 +80,11 @@ function onKeyboard(event: KeyboardEvent) {
 }
 let unlisten: (() => void)[] = []
 let media: MediaQueryList | undefined
+let stopAutomaticUpdateChecks: (() => void) | undefined
 function onSystemTheme(event: MediaQueryListEvent) { systemDark.value = event.matches }
 onMounted(async () => {
   prefs.load()
+  stopAutomaticUpdateChecks = appUpdates.startAutomaticChecks()
   quickStandalone.value = new URLSearchParams(window.location.search).get('window') === 'quick'
   media = window.matchMedia('(prefers-color-scheme: dark)')
   systemDark.value = media.matches
@@ -100,7 +103,7 @@ onMounted(async () => {
   // Subscribe before requesting the snapshot; useVault also guards against newer events.
   await vault.initialize()
 })
-onBeforeUnmount(() => { window.removeEventListener('keydown', onKeyboard); media?.removeEventListener('change', onSystemTheme); unlisten.forEach(fn => fn()) })
+onBeforeUnmount(() => { stopAutomaticUpdateChecks?.(); window.removeEventListener('keydown', onKeyboard); media?.removeEventListener('change', onSystemTheme); unlisten.forEach(fn => fn()) })
 </script>
 <template>
   <UApp>

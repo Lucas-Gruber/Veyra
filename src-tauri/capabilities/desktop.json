@@ -20,6 +20,9 @@
     "allow-open-main-item",
     "allow-login-vault",
     "allow-list-metadata",
-    "allow-sync-vault"
+    "allow-sync-vault",
+    "allow-app-info",
+    "allow-check-for-updates",
+    "allow-open-release-page"
   ]
 }

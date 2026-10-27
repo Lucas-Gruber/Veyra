@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { X, Palette, Command, ShieldCheck, Monitor, Moon, Sun, Info, ArrowUpRight } from '@lucide/vue'
+import { X, Palette, Command, ShieldCheck, Monitor, Moon, Sun, Info } from '@lucide/vue'
 const emit = defineEmits<{ close: [] }>()
 const prefs = usePreferences()
 const vault = useVault()
+const appUpdates = useAppUpdates()
 const tab = ref('Appearance')
 const panel = ref<HTMLElement>()
 const initialFocus = ref<HTMLButtonElement>()
@@ -12,7 +13,7 @@ onBeforeUnmount(() => previousFocus?.focus())
 function onKey(event: KeyboardEvent) {
   if (event.key === 'Escape') { event.stopPropagation(); emit('close') }
   if (event.key === 'Tab' && panel.value) {
-    const nodes = Array.from(panel.value.querySelectorAll<HTMLElement>('button:not([disabled]), select, a[href], input, [tabindex="0"]'))
+    const nodes = Array.from(panel.value.querySelectorAll<HTMLElement>('button:not([disabled]), select:not([disabled]), a[href], input:not([disabled]), [tabindex="0"]:not([disabled])'))
     const first = nodes[0], last = nodes[nodes.length - 1]
     if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
@@ -24,7 +25,7 @@ function onKey(event: KeyboardEvent) {
     <section ref="panel" class="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-heading" @keydown="onKey">
       <div class="settings-sidebar"><h2 id="settings-heading">Settings</h2><p>Make yourself at home.</p>
         <button v-for="entry in [{ label: 'Appearance', icon: Palette }, { label: 'Quick Access', icon: Command }, { label: 'Security', icon: ShieldCheck }, { label: 'About', icon: Info }]" :key="entry.label" :class="{ active: tab === entry.label }" @click="tab = entry.label"><component :is="entry.icon" :size="17"/>{{ entry.label }}</button>
-        <div class="settings-version"><BrandMark/> Veyra <span>0.1.0</span></div>
+        <div class="settings-version"><BrandMark/> Veyra <span>{{ appUpdates.version.value }}</span></div>
       </div>
       <div class="settings-body"><button ref="initialFocus" class="icon-button settings-close" aria-label="Close settings" @click="emit('close')"><X :size="19"/></button>
         <template v-if="tab === 'Appearance'">
@@ -49,9 +50,7 @@ function onKey(event: KeyboardEvent) {
           <div class="setting-note"><Info :size="20"/><span>{{ vault.desktop.value ? 'Clipboard history managers may retain copied data. Veyra cannot guarantee erasure outside the application.' : 'Browser demo: clipboard clearing is unavailable. Only synthetic sample values can be copied.' }}</span></div>
           <p class="setting-hint">This is an integration preview pending independent security review. Locking signs out and drops in-memory keys. Automatic locking, offline cache and write operations are not available yet.</p>
         </template>
-        <template v-else>
-          <BrandMark/><h3>Veyra</h3><p class="muted">Your vault. One shortcut away.</p><p class="about-copy">A thoughtful home for your digital life.<br>Made for Linux, built around your keyboard.</p><span class="status-chip">Read-only integration · 0.1.0</span><div class="setting-note"><ArrowUpRight :size="19"/><span>Vaultwarden sign-in, vault decryption and read-only synchronization run in Rust. Browser autofill, offline unlock and vault editing are upcoming milestones.</span></div>
-        </template>
+        <AboutPanel v-else/>
       </div>
     </section>
   </div>

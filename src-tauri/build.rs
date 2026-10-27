@@ -1,5 +1,8 @@
 fn main() {
     let manifest = tauri_build::AppManifest::new().commands(&[
+        "app_info",
+        "check_for_updates",
+        "open_release_page",
         "session_status",
         "login_vault",
         "list_metadata",

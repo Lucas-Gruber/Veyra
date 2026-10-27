@@ -18,6 +18,12 @@ pnpm dev                  # Browser UI preview with clearly labeled sample data 
 
 Connect using your HTTPS server address in the desktop application. Passwords are transient form inputs passed to Rust; keys, tokens and decrypted field operations stay in Rust, not Pinia/browser storage. The browser preview cannot connect to a real vault. The optional synthetic demo never substitutes for a failed real connection.
 
+## Program information and versions
+
+Settings → About shows the actual native version, release channel, platform, architecture and license. Update checks contact the public GitHub release API when due at startup and daily while open; they can be disabled or triggered manually. Stable installations ignore prereleases. Browser preview performs no update requests. Checks do not install updates.
+
+Use `pnpm version:set VERSION` and `pnpm version:check` to keep npm, Cargo, Tauri and AppStream consistent; see [versioning](docs/versioning.md). The first candidate is **0.1.0-alpha.1**. A tag starts validation; publication remains gated.
+
 ## Compatibility and validation
 
 Reference server: Vaultwarden **1.37.4**. Real tests cover PBKDF2, Argon2id, account/per-item keys, sync, integrity failures, wrong passwords, authenticator 2FA and locking. Daily compatibility CI also resolves the latest stable upstream version to an immutable image. This does not guarantee compatibility with arbitrary future versions. See [compatibility](docs/compatibility.md) and [test results](docs/validation.md).

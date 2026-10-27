@@ -33,6 +33,10 @@ jobs:
       - name: Install pinned Rust toolchain
         run: rustup show active-toolchain
       - run: pnpm install --frozen-lockfile
+      - name: Check version manifests and release tag
+        env:
+          RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+        run: pnpm version:check
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
@@ -89,12 +93,12 @@ jobs:
         run: bash scripts/build-flatpak.sh native-binary/veyra
       - name: Checksums
         run: |
-          cd dist
+          cd artifacts
           sha256sum ./*.flatpak > SHA256SUMS
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: veyra-linux-flatpak
           path: |
-            dist/*.flatpak
-            dist/SHA256SUMS
+            artifacts/*.flatpak
+            artifacts/SHA256SUMS
           if-no-files-found: error

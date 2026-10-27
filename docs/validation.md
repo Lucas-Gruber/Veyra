@@ -34,3 +34,11 @@ The failed Cargo audit remains a release blocker. No advisory suppression or rel
 ## First remote CI diagnosis
 
 The initial main push reached GitHub Actions. The runner correctly rejected node-forge 1.4.1 because it was published at 2026-10-27 04:44:07 UTC and the package manager enforces a 24-hour minimum release age. The security patch stays pinned; the age check is not bypassed. It becomes eligible after 2026-10-28 04:44:07 UTC. The daily CI is scheduled after that cutoff and also reruns baseline/latest Vaultwarden tests. A separate service-start failure was diagnosed as missing `/data` volume and corrected with a dedicated named service volume: upstream deliberately rejects anonymous Docker volumes. The volume is confined to its ephemeral CI runner.
+
+## 0.1.0-alpha.1 program information and versioning
+
+The About/update implementation passed 8 native update tests, 25 versioning tests, the existing 8 search tests and 11 browser E2E cases. Rust's default suite now runs 24 passing tests with 2 live tests explicitly excluded; both live Vaultwarden tests were rerun and passed on the alpha candidate. Type checking, ESLint, Rustfmt, Clippy and static/native debug builds passed.
+
+The native About screen was exercised against the real public GitHub HTTPS API while the vault was locked. It displayed the actual `0.1.0-alpha.1` runtime version, Linux/x86_64/GPL metadata and a successful “No published releases yet” response. Browser preview made zero GitHub requests. UI fixtures additionally exercised available updates, automatic-check opt-out and explicit network failure without a false “up to date.”
+
+The compatibility pipeline on commit `514299c` completed both real server tests on GitHub (run `40457861341`, job `122035483340`). Source candidate tagging and draft preparation do not change the known audit/minimum-age/publication gates.

@@ -38,19 +38,22 @@ if len(header) != 20 or header[:4] != b'\x7fELF' or header[4:6] != b'\x02\x01' o
 print(version)
 PY
 )
+flatpak_branch=stable
+if [[ "$version" == *-* ]]; then flatpak_branch=beta; fi
 desktop-file-validate "$project_root/packaging/flatpak/$app_id.desktop"
 appstreamcli validate --no-net "$project_root/packaging/flatpak/$app_id.metainfo.xml"
 # Install these separately while online. This command neither installs nor updates
 # runtime dependencies, and the final build does not receive network access.
 flatpak --user info org.gnome.Platform//51 >/dev/null
 flatpak --user info org.gnome.Sdk//51 >/dev/null
-mkdir -p "$project_root/dist"
-stage=$(mktemp -d "$project_root/dist/.flatpak-staging.XXXXXX")
+mkdir -p "$project_root/artifacts"
+stage=$(mktemp -d "$project_root/artifacts/.flatpak-staging.XXXXXX")
 printf 'Flatpak build staging: %s\n' "$stage"
-python3 - "$manifest" "$binary" "$stage" <<'PY'
+python3 - "$manifest" "$binary" "$stage" "$flatpak_branch" <<'PY'
 import hashlib, json, pathlib, shutil, sys
-manifest_path, binary, stage = map(pathlib.Path, sys.argv[1:])
+manifest_path, binary, stage = map(pathlib.Path, sys.argv[1:4])
 manifest = json.loads(manifest_path.read_text())
+manifest['default-branch'] = sys.argv[4]
 for source in manifest['modules'][0]['sources']:
     origin = binary if source.get('dest-filename') == 'veyra' else (manifest_path.parent / source['path']).resolve()
     name = source.get('dest-filename', origin.name)
@@ -61,18 +64,18 @@ for source in manifest['modules'][0]['sources']:
 (stage / 'input-binary.sha256').write_text(hashlib.sha256(binary.read_bytes()).hexdigest() + '  veyra\n')
 PY
 flatpak-builder --show-manifest "$stage/manifest.json" > "$stage/resolved-manifest.json"
-flatpak-builder --user --arch=x86_64 --sandbox --disable-download \
+flatpak-builder --user --arch=x86_64 --sandbox --disable-download --disable-rofiles-fuse \
   --state-dir="$stage/state" --repo="$stage/repo" "$stage/build" "$stage/manifest.json"
 # Check the packaged binary against the selected runtime, not the developer host.
 flatpak-builder --run "$stage/build" "$stage/manifest.json" /bin/sh -ec \
   'ldd /app/bin/veyra > /tmp/veyra-ldd.txt; cat /tmp/veyra-ldd.txt; ! grep -F "not found" /tmp/veyra-ldd.txt'
-output="$project_root/dist/Veyra-$version-linux-x86_64.flatpak"
+output="$project_root/artifacts/Veyra-$version-linux-x86_64.flatpak"
 if [[ -e "$output" ]]; then
   printf 'Refusing to overwrite existing bundle: %s\n' "$output" >&2
   exit 2
 fi
 flatpak build-bundle --arch=x86_64 --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
-  "$stage/repo" "$output" "$app_id" stable
+  "$stage/repo" "$output" "$app_id" "$flatpak_branch"
 # Install only this newly built app into a clean user installation. Preserve
 # existing runtimes, preferences and data; clean up only the app we just added.
 installed_by_this_script=false

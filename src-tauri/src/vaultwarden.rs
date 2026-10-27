@@ -268,7 +268,7 @@ impl Vaultwarden {
             .connect_timeout(Duration::from_secs(10))
             .timeout(Duration::from_secs(30))
             .redirect(reqwest::redirect::Policy::none())
-            .user_agent("Veyra/0.1.0")
+            .user_agent(concat!("Veyra/", env!("CARGO_PKG_VERSION")))
             .build()
             .map_err(|_| network_error())?;
         // This is the ONLY prelogin fetch. Checked parameters below are used for both
@@ -405,7 +405,7 @@ impl Vaultwarden {
                 .join("api")
                 .map_err(|_| invalid_response())?
                 .to_string(),
-            user_agent: "Veyra/0.1.0".into(),
+            user_agent: concat!("Veyra/", env!("CARGO_PKG_VERSION")).into(),
             device_type: DeviceType::LinuxDesktop,
             ..Default::default()
         }));

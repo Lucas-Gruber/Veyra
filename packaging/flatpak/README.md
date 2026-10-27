@@ -13,3 +13,5 @@ Before adding a release workflow, validate a complete offline `flatpak-builder` 
 7. Build and smoke-test the bundle in CI, validate matching version metadata, and only then add semantic-tag releases, checksums and least-privilege release permissions.
 
 Reference: https://docs.flatpak.org/en/latest/first-build.html and https://v2.tauri.app/distribute/flatpak/ . Packaging remains an explicit later milestone rather than a nonfunctional manifest.
+
+Build output goes to `artifacts/`, separate from Nuxt’s generated `dist` symlink. Prerelease versions are packaged on the `beta` app branch; stable versions use `stable`.
