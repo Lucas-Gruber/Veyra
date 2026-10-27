@@ -51,10 +51,13 @@ jobs:
           LOGIN_RATELIMIT_MAX_BURST: '1000'
           LOGIN_RATELIMIT_SECONDS: '1'
           WEB_VAULT_ENABLED: 'false'
+          ROCKET_ADDRESS: '0.0.0.0'
+          ROCKET_PORT: '8222'
+          DOMAIN: 'http://127.0.0.1:8222'
         ports:
-          - 127.0.0.1:8222:80
+          - 127.0.0.1:8222:8222
         volumes:
-          - /data
+          - veyra-ci-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.version }}:/data
         options: --cap-drop=ALL --security-opt=no-new-privileges --memory=512m
     env:
       CARGO_BUILD_JOBS: 3
