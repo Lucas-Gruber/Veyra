@@ -1,6 +1,6 @@
 [package]
 name = "veyra"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 description = "Your vault. One shortcut away."
 authors = ["Veyra contributors"]
 edition = "2021"
