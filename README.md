@@ -6,7 +6,7 @@ A Linux-first, keyboard-first Vaultwarden client built with Tauri 2, Rust, Nuxt 
 
 ## Read-only integration preview
 
-Veyra can sign in to a compatible Vaultwarden server, decrypt supported personal vault items using pinned official Bitwarden Rust components, synchronize them and copy login fields or generated TOTP codes. It includes a main vault window, a dedicated Quick Access window, local search, light/dark/system appearance and Modern/Glass surfaces.
+Veyra can sign in to a compatible Vaultwarden server, decrypt supported personal vault items using official Bitwarden Rust SDK release `rust-v4.0.0`, synchronize them and copy login fields or generated TOTP codes. The SDK is pinned to the release's exact commit. Veyra includes a main vault window, a dedicated Quick Access window, local search, light/dark/system appearance and Modern/Glass surfaces.
 
 This is an early integration preview, **not a production-security claim**. Organizations, vault editing, offline unlock/cache, browser autofill and system-wide shortcut registration are not implemented. Locking signs out, clears both windows and requires another sign-in. `Ctrl Alt Space` opens Quick Access while Veyra has focus. Clipboard clearing is best effort after 30 seconds, only when unchanged; external history managers may retain values.
 
@@ -22,7 +22,7 @@ Connect using your HTTPS server address in the desktop application. Passwords ar
 
 Settings → About shows the actual native version, release channel, platform, architecture and license. Update checks contact the public GitHub release API when due at startup and daily while open; they can be disabled or triggered manually. Stable installations ignore prereleases. Browser preview performs no update requests. Checks do not install updates.
 
-Use `pnpm version:set VERSION` and `pnpm version:check` to keep npm, Cargo, Tauri and AppStream consistent; see [versioning](docs/versioning.md). The first candidate is **0.1.0-alpha.1**. A tag starts validation; publication remains gated.
+Use `pnpm version:set VERSION` and `pnpm version:check` to keep npm, Cargo, Tauri and AppStream consistent; see [versioning](docs/versioning.md). The released-SDK candidate is **0.1.0-alpha.3**. A tag starts validation; publication remains gated.
 
 ## Compatibility and validation
 

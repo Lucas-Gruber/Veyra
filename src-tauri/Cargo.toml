@@ -1,6 +1,6 @@
 [package]
 name = "veyra"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 description = "Your vault. One shortcut away."
 authors = ["Veyra contributors"]
 edition = "2021"
@@ -29,10 +29,10 @@ tokio-util = { version = "0.7", features = ["rt"] }
 reqwest = { version = "0.13.3", features = ["json", "form", "stream"] }
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["serde", "v4"] }
-bitwarden-core = { git = "https://github.com/bitwarden/sdk-internal", rev = "4988da44b0ac55778e3a45ec7363394509298866", features = ["internal"] }
-bitwarden-crypto = { git = "https://github.com/bitwarden/sdk-internal", rev = "4988da44b0ac55778e3a45ec7363394509298866" }
-bitwarden-vault = { git = "https://github.com/bitwarden/sdk-internal", rev = "4988da44b0ac55778e3a45ec7363394509298866" }
-bitwarden-api-api = { git = "https://github.com/bitwarden/sdk-internal", rev = "4988da44b0ac55778e3a45ec7363394509298866" }
+bitwarden-core = { git = "https://github.com/bitwarden/sdk-internal", rev = "b865d1db0025d9d12bea871a3a131c05aaeed205", features = ["internal"] }
+bitwarden-crypto = { git = "https://github.com/bitwarden/sdk-internal", rev = "b865d1db0025d9d12bea871a3a131c05aaeed205" }
+bitwarden-vault = { git = "https://github.com/bitwarden/sdk-internal", rev = "b865d1db0025d9d12bea871a3a131c05aaeed205" }
+bitwarden-api-api = { git = "https://github.com/bitwarden/sdk-internal", rev = "b865d1db0025d9d12bea871a3a131c05aaeed205" }
 
 
 [features]

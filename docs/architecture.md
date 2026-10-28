@@ -25,11 +25,11 @@ Locking cancels current work and advances a generation. Stale async login/sync c
 
 ## SDK and license decision
 
-The official password-vault SDK is internal, unstable and not publicly supported. Secrets Manager SDK alone does not implement password-vault management. Veyra pins `bitwarden-core`, `bitwarden-crypto`, `bitwarden-vault` and API models to commit `4988da44b0ac55778e3a45ec7363394509298866` of `bitwarden/sdk-internal`. Selected SDK crates offer `GPL-3.0-only OR LicenseRef-Bitwarden-SDK`; Veyra selects GPL-3.0-only and licenses the combined application accordingly. Proprietary-only `bitwarden_license` paths are excluded. This does not establish endorsement or compatibility with every Bitwarden/Vaultwarden deployment.
+Veyra uses the published Bitwarden Rust SDK release `rust-v4.0.0` (2026-09-28). `bitwarden-core`, `bitwarden-crypto`, `bitwarden-vault` and API models are pinned to its exact commit `b865d1db0025d9d12bea871a3a131c05aaeed205`, rather than a later development snapshot. The repository and APIs remain internal and are not a public third-party compatibility guarantee. Secrets Manager SDK alone does not implement password-vault management. Selected SDK crates offer `GPL-3.0-only OR LicenseRef-Bitwarden-SDK`; Veyra selects GPL-3.0-only and licenses the combined application accordingly. Proprietary-only `bitwarden_license` paths are excluded. This does not establish upstream endorsement or compatibility with every Bitwarden/Vaultwarden deployment.
 
 Supported account crypto is V1 with supported AES-CBC-HMAC envelopes and PBKDF2/Argon2id. Newer account states, unrecognized KDFs and failed integrity verification fail closed. The SDK's strict decryption feature flag is checked explicitly so a changed SDK flag cannot silently enable lenient decoding. Updates require a deliberate source-pin review and server matrix tests.
 
-Sources: https://github.com/bitwarden/sdk-internal/tree/4988da44b0ac55778e3a45ec7363394509298866 , its root LICENSE/LICENSE_GPL.txt, and https://github.com/dani-garcia/vaultwarden .
+Sources: https://github.com/bitwarden/sdk-internal/releases/tag/rust-v4.0.0 , https://github.com/bitwarden/sdk-internal/tree/b865d1db0025d9d12bea871a3a131c05aaeed205 , its root LICENSE/LICENSE_GPL.txt, and https://github.com/dani-garcia/vaultwarden .
 
 ## Delivery boundaries
 

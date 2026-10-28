@@ -79,5 +79,30 @@ and the optimized Linux build. Its Flatpak sandbox build reached AppStream
 composition, where Ubuntu 24.04 lacked the recommended SVG decoder. The exact
 AppStream 1.0.2 error was reproduced with the repository assets: composition failed
 without `librsvg2-common` and succeeded after installing only that signed distro
-package. The packaging prerequisites now include it explicitly. Installed
-Flatpak verification still requires the corrected CI run.
+package. The packaging prerequisites now include it explicitly. The corrected
+run `40636148532` then passed the installed Flatpak gate, including Quick Access,
+search, native clipboard copy and explicit-lock clearing. The alpha-2 tag run
+`40638890126` passed those checks too; publication was skipped because of RSA.
+
+## Published SDK release migration — 0.1.0-alpha.3
+
+The four direct SDK dependencies now use the published `rust-v4.0.0` release at
+`b865d1db0025d9d12bea871a3a131c05aaeed205`, rather than the later development
+snapshot. The adapter required no API changes. All 24 locked SDK packages offer
+the GPL option; no proprietary-only SDK path or unsafe debug/memory-hardening
+feature is enabled. The locked package graph decreased from 698 to 696 packages.
+
+The migration passed 24 default Rust tests, both separately executed actual
+Vaultwarden tests, 33 frontend unit tests and 11 browser E2E cases: 70 executed
+tests in total. Rustfmt, Clippy with warnings denied, type checking, ESLint,
+static generation and coordinated-version validation passed. The optimized
+Alpha3 binary built successfully and its exact SHA-256 was preserved through a
+native-host smoke covering main/Quick Access, search, native clipboard copying
+and explicit locking. The labelled fixture server was stopped with its test
+container/data retained.
+
+The new release pin still resolves `rsa` 0.10.0-rc.19. A fresh raw `cargo audit`
+returned exit 1 with exactly RUSTSEC-2023-0071 and the previous five warnings.
+No audit suppression or publication-policy exception has been applied. Installed
+Flatpak and source-archive verification for Alpha3 are separate release checks;
+prior alpha results do not substitute for them.

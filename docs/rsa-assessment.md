@@ -1,7 +1,8 @@
 # RSA dependency assessment — 2026-10-28
 
-This records a source review of Veyra and the official Bitwarden SDK pinned at
-`4988da44b0ac55778e3a45ec7363394509298866`. It is not an independent security
+This records a source review of Veyra and the published official Bitwarden SDK
+release `rust-v4.0.0`, pinned at `b865d1db0025d9d12bea871a3a131c05aaeed205`. The
+release was re-reviewed when replacing the previous development snapshot. It is not an independent security
 certification, a formal proof, or an advisory exception. The release audit stays
 enabled and failing for **RUSTSEC-2023-0071** until its finding is resolved.
 
@@ -10,7 +11,8 @@ enabled and failing for **RUSTSEC-2023-0071** until its finding is resolved.
 [RUSTSEC-2023-0071](https://rustsec.org/advisories/RUSTSEC-2023-0071.html)
 describes recovery of RSA private keys through timing observations of private-key
 decryption. RustSec currently lists no patched version. Updating the pinned SDK
-to current upstream does not remove its mandatory `rsa` dependency.
+to the published SDK release does not remove its mandatory `rsa` dependency:
+the release requests `0.10.0-rc.17` and the lockfile resolves `0.10.0-rc.19`.
 
 In this SDK, the reviewed vulnerable sink is
 `UnsignedSharedKey::decapsulate_key_unsigned` in

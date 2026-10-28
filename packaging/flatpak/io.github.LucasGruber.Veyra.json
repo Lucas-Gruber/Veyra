@@ -22,7 +22,8 @@
         "install -Dm644 io.github.LucasGruber.Veyra.desktop /app/share/applications/io.github.LucasGruber.Veyra.desktop",
         "install -Dm644 io.github.LucasGruber.Veyra.metainfo.xml /app/share/metainfo/io.github.LucasGruber.Veyra.metainfo.xml",
         "install -Dm644 io.github.LucasGruber.Veyra.svg /app/share/icons/hicolor/scalable/apps/io.github.LucasGruber.Veyra.svg",
-        "install -Dm644 LICENSE /app/share/licenses/io.github.LucasGruber.Veyra/LICENSE"
+        "install -Dm644 LICENSE /app/share/licenses/io.github.LucasGruber.Veyra/LICENSE",
+        "install -Dm644 THIRD_PARTY_NOTICES.md /app/share/licenses/io.github.LucasGruber.Veyra/THIRD_PARTY_NOTICES.md"
       ],
       "sources": [
         {
@@ -45,6 +46,10 @@
         {
           "type": "file",
           "path": "../../LICENSE"
+        },
+        {
+          "type": "file",
+          "path": "../../THIRD_PARTY_NOTICES.md"
         }
       ]
     }

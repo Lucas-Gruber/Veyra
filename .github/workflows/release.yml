@@ -19,25 +19,20 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .node-version
+      - name: Install pinned source package manager
+        run: npm install --global pnpm@11.25.0
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: veyra-linux-flatpak
           path: release-artifacts
-      - name: Prepare source archive with Rust dependencies
+      - name: Prepare source archive with locked dependency contents
         run: |
           set -euo pipefail
           rustup show active-toolchain
-          source_dir="$RUNNER_TEMP/veyra-source"
-          mkdir -p "$source_dir/.cargo"
-          git archive HEAD | tar -x -C "$source_dir"
-          cargo vendor --locked --versioned-dirs --manifest-path src-tauri/Cargo.toml "$source_dir/rust-vendor" > "$source_dir/.cargo/config.toml"
-          python3 - "$source_dir" <<'PY'
-          import pathlib,sys
-          root=pathlib.Path(sys.argv[1]); config=root/'.cargo/config.toml'
-          config.write_text(config.read_text().replace(str(root/'rust-vendor'), 'rust-vendor'))
-          PY
-          source_epoch=$(git log -1 --format=%ct)
-          tar --sort=name --mtime="@$source_epoch" --owner=0 --group=0 --numeric-owner -czf "release-artifacts/Veyra-${GITHUB_REF_NAME#v}-source.tar.gz" -C "$source_dir" .
+          bash scripts/prepare-source-archive.sh release-artifacts
           cd release-artifacts
           sha256sum ./*.flatpak ./*-source.tar.gz > SHA256SUMS
       - name: Publish only successful tagged builds

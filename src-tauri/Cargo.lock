@@ -388,7 +388,7 @@ dependencies = [
 [[package]]
 name = "bitwarden-api-api"
 version = "4.0.0"
-source = "git+https://github.com/bitwarden/sdk-internal?rev=4988da44b0ac55778e3a45ec7363394509298866#4988da44b0ac55778e3a45ec7363394509298866"
+source = "git+https://github.com/bitwarden/sdk-internal?rev=b865d1db0025d9d12bea871a3a131c05aaeed205#b865d1db0025d9d12bea871a3a131c05aaeed205"
 dependencies = [
  "async-trait",
  "bitwarden-api-base",
@@ -404,7 +404,7 @@ dependencies = [
 [[package]]
 name = "bitwarden-api-base"
 version = "4.0.0"
-source = "git+https://github.com/bitwarden/sdk-internal?rev=4988da44b0ac55778e3a45ec7363394509298866#4988da44b0ac55778e3a45ec7363394509298866"
+source = "git+https://github.com/bitwarden/sdk-internal?rev=b865d1db0025d9d12bea871a3a131c05aaeed205#b865d1db0025d9d12bea871a3a131c05aaeed205"
 dependencies = [
  "http",
  "reqwest",
@@ -419,7 +419,7 @@ dependencies = [
 [[package]]
 name = "bitwarden-api-identity"
 version = "4.0.0"
-source = "git+https://github.com/bitwarden/sdk-internal?rev=4988da44b0ac55778e3a45ec7363394509298866#4988da44b0ac55778e3a45ec7363394509298866"
+source = "git+https://github.com/bitwarden/sdk-internal?rev=b865d1db0025d9d12bea871a3a131c05aaeed205#b865d1db0025d9d12bea871a3a131c05aaeed205"
 dependencies = [
  "async-trait",
  "bitwarden-api-base",
@@ -435,7 +435,7 @@ dependencies = [
 [[package]]
 name = "bitwarden-api-key-connector"
 version = "4.0.0"
-source = "git+https://github.com/bitwarden/sdk-internal?rev=4988da44b0ac55778e3a45ec7363394509298866#4988da44b0ac55778e3a45ec7363394509298866"
+source = "git+https://github.com/bitwarden/sdk-internal?rev=b865d1db0025d9d12bea871a3a131c05aaeed205#b865d1db0025d9d12bea871a3a131c05aaeed205"
 dependencies = [
  "async-trait",
  "bitwarden-api-base",
@@ -450,13 +450,12 @@ dependencies = [
 [[package]]
 name = "bitwarden-collections"
 version = "4.0.0"
-source = "git+https://github.com/bitwarden/sdk-internal?rev=4988da44b0ac55778e3a45ec7363394509298866#4988da44b0ac55778e3a45ec7363394509298866"
+source = "git+https://github.com/bitwarden/sdk-internal?rev=b865d1db0025d9d12bea871a3a131c05aaeed205#b865d1db0025d9d12bea871a3a131c05aaeed205"
 dependencies = [
  "bitwarden-api-api",
  "bitwarden-core",
  "bitwarden-crypto",
  "bitwarden-error",
- "bitwarden-ffi",
  "bitwarden-uuid",
  "serde",
  "serde_repr",
@@ -467,7 +466,7 @@ dependencies = [
 [[package]]
 name = "bitwarden-core"
 version = "4.0.0"
-source = "git+https://github.com/bitwarden/sdk-internal?rev=4988da44b0ac55778e3a45ec7363394509298866#4988da44b0ac55778e3a45ec7363394509298866"
+source = "git+https://github.com/bitwarden/sdk-internal?rev=b865d1db0025d9d12bea871a3a131c05aaeed205#b865d1db0025d9d12bea871a3a131c05aaeed205"
 dependencies = [
  "async-trait",
  "bitwarden-api-api",
@@ -478,7 +477,6 @@ dependencies = [
  "bitwarden-crypto",
  "bitwarden-encoding",
  "bitwarden-error",
- "bitwarden-ffi",
  "bitwarden-logging",
  "bitwarden-managed-settings-types",
  "bitwarden-random",
@@ -508,7 +506,7 @@ dependencies = [
 [[package]]
 name = "bitwarden-core-macro"
 version = "4.0.0"
-source = "git+https://github.com/bitwarden/sdk-internal?rev=4988da44b0ac55778e3a45ec7363394509298866#4988da44b0ac55778e3a45ec7363394509298866"
+source = "git+https://github.com/bitwarden/sdk-internal?rev=b865d1db0025d9d12bea871a3a131c05aaeed205#b865d1db0025d9d12bea871a3a131c05aaeed205"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -518,7 +516,7 @@ dependencies = [
 [[package]]
 name = "bitwarden-crypto"
 version = "4.0.0"
-source = "git+https://github.com/bitwarden/sdk-internal?rev=4988da44b0ac55778e3a45ec7363394509298866#4988da44b0ac55778e3a45ec7363394509298866"
+source = "git+https://github.com/bitwarden/sdk-internal?rev=b865d1db0025d9d12bea871a3a131c05aaeed205#b865d1db0025d9d12bea871a3a131c05aaeed205"
 dependencies = [
  "aes",
  "aes-gcm",
@@ -526,7 +524,6 @@ dependencies = [
  "bitwarden-api-key-connector",
  "bitwarden-encoding",
  "bitwarden-error",
- "bitwarden-ffi",
  "bitwarden-logging",
  "bitwarden-random",
  "bitwarden-sensitive-value",
@@ -566,9 +563,8 @@ dependencies = [
 [[package]]
 name = "bitwarden-encoding"
 version = "4.0.0"
-source = "git+https://github.com/bitwarden/sdk-internal?rev=4988da44b0ac55778e3a45ec7363394509298866#4988da44b0ac55778e3a45ec7363394509298866"
+source = "git+https://github.com/bitwarden/sdk-internal?rev=b865d1db0025d9d12bea871a3a131c05aaeed205#b865d1db0025d9d12bea871a3a131c05aaeed205"
 dependencies = [
- "bitwarden-ffi",
  "data-encoding",
  "data-encoding-macro",
  "serde",
@@ -578,7 +574,7 @@ dependencies = [
 [[package]]
 name = "bitwarden-error"
 version = "4.0.0"
-source = "git+https://github.com/bitwarden/sdk-internal?rev=4988da44b0ac55778e3a45ec7363394509298866#4988da44b0ac55778e3a45ec7363394509298866"
+source = "git+https://github.com/bitwarden/sdk-internal?rev=b865d1db0025d9d12bea871a3a131c05aaeed205#b865d1db0025d9d12bea871a3a131c05aaeed205"
 dependencies = [
  "bitwarden-error-macro",
 ]
@@ -586,7 +582,7 @@ dependencies = [
 [[package]]
 name = "bitwarden-error-macro"
 version = "4.0.0"
-source = "git+https://github.com/bitwarden/sdk-internal?rev=4988da44b0ac55778e3a45ec7363394509298866#4988da44b0ac55778e3a45ec7363394509298866"
+source = "git+https://github.com/bitwarden/sdk-internal?rev=b865d1db0025d9d12bea871a3a131c05aaeed205#b865d1db0025d9d12bea871a3a131c05aaeed205"
 dependencies = [
  "darling 0.20.11",
  "proc-macro2",
@@ -595,29 +591,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "bitwarden-ffi"
-version = "4.0.0"
-source = "git+https://github.com/bitwarden/sdk-internal?rev=4988da44b0ac55778e3a45ec7363394509298866#4988da44b0ac55778e3a45ec7363394509298866"
-dependencies = [
- "bitwarden-ffi-macro",
-]
-
-[[package]]
-name = "bitwarden-ffi-macro"
-version = "4.0.0"
-source = "git+https://github.com/bitwarden/sdk-internal?rev=4988da44b0ac55778e3a45ec7363394509298866#4988da44b0ac55778e3a45ec7363394509298866"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
-]
-
-[[package]]
 name = "bitwarden-logging"
 version = "4.0.0"
-source = "git+https://github.com/bitwarden/sdk-internal?rev=4988da44b0ac55778e3a45ec7363394509298866#4988da44b0ac55778e3a45ec7363394509298866"
+source = "git+https://github.com/bitwarden/sdk-internal?rev=b865d1db0025d9d12bea871a3a131c05aaeed205#b865d1db0025d9d12bea871a3a131c05aaeed205"
 dependencies = [
- "bitwarden-ffi",
  "bitwarden-logging-macro",
  "chrono",
  "serde",
@@ -629,7 +606,7 @@ dependencies = [
 [[package]]
 name = "bitwarden-logging-macro"
 version = "4.0.0"
-source = "git+https://github.com/bitwarden/sdk-internal?rev=4988da44b0ac55778e3a45ec7363394509298866#4988da44b0ac55778e3a45ec7363394509298866"
+source = "git+https://github.com/bitwarden/sdk-internal?rev=b865d1db0025d9d12bea871a3a131c05aaeed205#b865d1db0025d9d12bea871a3a131c05aaeed205"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -639,10 +616,9 @@ dependencies = [
 [[package]]
 name = "bitwarden-managed-settings-types"
 version = "4.0.0"
-source = "git+https://github.com/bitwarden/sdk-internal?rev=4988da44b0ac55778e3a45ec7363394509298866#4988da44b0ac55778e3a45ec7363394509298866"
+source = "git+https://github.com/bitwarden/sdk-internal?rev=b865d1db0025d9d12bea871a3a131c05aaeed205#b865d1db0025d9d12bea871a3a131c05aaeed205"
 dependencies = [
  "bitwarden-error",
- "bitwarden-ffi",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -651,10 +627,9 @@ dependencies = [
 [[package]]
 name = "bitwarden-random"
 version = "4.0.0"
-source = "git+https://github.com/bitwarden/sdk-internal?rev=4988da44b0ac55778e3a45ec7363394509298866#4988da44b0ac55778e3a45ec7363394509298866"
+source = "git+https://github.com/bitwarden/sdk-internal?rev=b865d1db0025d9d12bea871a3a131c05aaeed205#b865d1db0025d9d12bea871a3a131c05aaeed205"
 dependencies = [
  "bitwarden-error",
- "bitwarden-ffi",
  "rand",
  "thiserror 1.0.69",
  "uuid",
@@ -663,19 +638,17 @@ dependencies = [
 [[package]]
 name = "bitwarden-sensitive-value"
 version = "4.0.0"
-source = "git+https://github.com/bitwarden/sdk-internal?rev=4988da44b0ac55778e3a45ec7363394509298866#4988da44b0ac55778e3a45ec7363394509298866"
+source = "git+https://github.com/bitwarden/sdk-internal?rev=b865d1db0025d9d12bea871a3a131c05aaeed205#b865d1db0025d9d12bea871a3a131c05aaeed205"
 dependencies = [
- "bitwarden-ffi",
  "serde",
 ]
 
 [[package]]
 name = "bitwarden-ssh"
 version = "4.0.0"
-source = "git+https://github.com/bitwarden/sdk-internal?rev=4988da44b0ac55778e3a45ec7363394509298866#4988da44b0ac55778e3a45ec7363394509298866"
+source = "git+https://github.com/bitwarden/sdk-internal?rev=b865d1db0025d9d12bea871a3a131c05aaeed205#b865d1db0025d9d12bea871a3a131c05aaeed205"
 dependencies = [
  "bitwarden-error",
- "bitwarden-ffi",
  "bitwarden-random",
  "block-padding",
  "ed25519",
@@ -696,11 +669,10 @@ dependencies = [
 [[package]]
 name = "bitwarden-state"
 version = "4.0.0"
-source = "git+https://github.com/bitwarden/sdk-internal?rev=4988da44b0ac55778e3a45ec7363394509298866#4988da44b0ac55778e3a45ec7363394509298866"
+source = "git+https://github.com/bitwarden/sdk-internal?rev=b865d1db0025d9d12bea871a3a131c05aaeed205#b865d1db0025d9d12bea871a3a131c05aaeed205"
 dependencies = [
  "async-trait",
  "bitwarden-error",
- "bitwarden-ffi",
  "bitwarden-threading",
  "indexed-db",
  "js-sys",
@@ -716,7 +688,7 @@ dependencies = [
 [[package]]
 name = "bitwarden-state-bridge-macro"
 version = "4.0.0"
-source = "git+https://github.com/bitwarden/sdk-internal?rev=4988da44b0ac55778e3a45ec7363394509298866#4988da44b0ac55778e3a45ec7363394509298866"
+source = "git+https://github.com/bitwarden/sdk-internal?rev=b865d1db0025d9d12bea871a3a131c05aaeed205#b865d1db0025d9d12bea871a3a131c05aaeed205"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -726,7 +698,7 @@ dependencies = [
 [[package]]
 name = "bitwarden-sync"
 version = "4.0.0"
-source = "git+https://github.com/bitwarden/sdk-internal?rev=4988da44b0ac55778e3a45ec7363394509298866#4988da44b0ac55778e3a45ec7363394509298866"
+source = "git+https://github.com/bitwarden/sdk-internal?rev=b865d1db0025d9d12bea871a3a131c05aaeed205#b865d1db0025d9d12bea871a3a131c05aaeed205"
 dependencies = [
  "async-trait",
  "bitwarden-api-api",
@@ -742,7 +714,7 @@ dependencies = [
 [[package]]
 name = "bitwarden-threading"
 version = "4.0.0"
-source = "git+https://github.com/bitwarden/sdk-internal?rev=4988da44b0ac55778e3a45ec7363394509298866#4988da44b0ac55778e3a45ec7363394509298866"
+source = "git+https://github.com/bitwarden/sdk-internal?rev=b865d1db0025d9d12bea871a3a131c05aaeed205#b865d1db0025d9d12bea871a3a131c05aaeed205"
 dependencies = [
  "bitwarden-error",
  "serde",
@@ -755,7 +727,7 @@ dependencies = [
 [[package]]
 name = "bitwarden-uuid"
 version = "4.0.0"
-source = "git+https://github.com/bitwarden/sdk-internal?rev=4988da44b0ac55778e3a45ec7363394509298866#4988da44b0ac55778e3a45ec7363394509298866"
+source = "git+https://github.com/bitwarden/sdk-internal?rev=b865d1db0025d9d12bea871a3a131c05aaeed205#b865d1db0025d9d12bea871a3a131c05aaeed205"
 dependencies = [
  "bitwarden-uuid-macro",
 ]
@@ -763,7 +735,7 @@ dependencies = [
 [[package]]
 name = "bitwarden-uuid-macro"
 version = "4.0.0"
-source = "git+https://github.com/bitwarden/sdk-internal?rev=4988da44b0ac55778e3a45ec7363394509298866#4988da44b0ac55778e3a45ec7363394509298866"
+source = "git+https://github.com/bitwarden/sdk-internal?rev=b865d1db0025d9d12bea871a3a131c05aaeed205#b865d1db0025d9d12bea871a3a131c05aaeed205"
 dependencies = [
  "quote",
  "syn 2.0.119",
@@ -772,7 +744,7 @@ dependencies = [
 [[package]]
 name = "bitwarden-vault"
 version = "4.0.0"
-source = "git+https://github.com/bitwarden/sdk-internal?rev=4988da44b0ac55778e3a45ec7363394509298866#4988da44b0ac55778e3a45ec7363394509298866"
+source = "git+https://github.com/bitwarden/sdk-internal?rev=b865d1db0025d9d12bea871a3a131c05aaeed205#b865d1db0025d9d12bea871a3a131c05aaeed205"
 dependencies = [
  "async-trait",
  "bitwarden-api-api",
@@ -782,7 +754,6 @@ dependencies = [
  "bitwarden-crypto",
  "bitwarden-encoding",
  "bitwarden-error",
- "bitwarden-ffi",
  "bitwarden-logging",
  "bitwarden-ssh",
  "bitwarden-state",
@@ -797,7 +768,6 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_repr",
- "serde_with",
  "sha1",
  "sha2 0.11.1",
  "subtle",
@@ -6551,7 +6521,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "veyra"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 dependencies = [
  "arboard",
  "bitwarden-api-api",
