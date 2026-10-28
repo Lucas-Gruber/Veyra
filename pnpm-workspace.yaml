@@ -1,3 +1,5 @@
+# Keep the package manager's 24-hour supply-chain quarantine explicit.
+minimumReleaseAge: 1440
 allowBuilds:
   esbuild: true
   unrs-resolver: true

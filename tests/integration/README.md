@@ -27,8 +27,11 @@ ghcr.io/dani-garcia/vaultwarden:1.37.4@sha256:efb3cde962015fcc036b2ea62524224861
 For example, start a disposable local server:
 
 ```sh
+integration_volume="veyra-local-integration-$(date +%s)-$$"
+docker volume create "$integration_volume"
 docker run --detach --rm --name veyra-local-integration \
   --cap-drop ALL --security-opt no-new-privileges --pids-limit 256 --memory 512m \
+  --mount "type=volume,source=$integration_volume,target=/data" \
   --publish 127.0.0.1:8222:8222 \
   --env ROCKET_ADDRESS=0.0.0.0 --env ROCKET_PORT=8222 \
   --env DOMAIN=http://127.0.0.1:8222 --env WEB_VAULT_ENABLED=false \
@@ -38,7 +41,9 @@ docker run --detach --rm --name veyra-local-integration \
   ghcr.io/dani-garcia/vaultwarden:1.37.4@sha256:efb3cde962015fcc036b2ea625242248611943b27212ebf4392841fb30fad055
 ```
 
-The elevated login rate limit is **only for the isolated integration server**:
+The dedicated **named** volume is required: Vaultwarden rejects a missing or
+anonymous `/data` volume. It contains only these disposable accounts. The elevated
+login rate limit is **only for the isolated integration server**:
 the repeated positive/negative tests otherwise exhaust Vaultwarden's default
 IP-based bucket. It does not change cryptography or the application policy.
 Wait for `/alive` before seeding, then from the repository root:
@@ -52,7 +57,7 @@ fixture_dir=$(mktemp -d /tmp/veyra-fixtures.XXXXXX)
   --output "$fixture_dir/accounts.json"
 export VEYRA_TEST_FIXTURE_FILE="$fixture_dir/accounts.json"
 cargo test --locked --manifest-path src-tauri/Cargo.toml \
-  actual_vaultwarden_pbkdf2_and_argon2_login_sync_and_decrypt -- --ignored
+  vaultwarden::tests::actual_vaultwarden_ -- --ignored
 ```
 
 The credential manifest must be outside the checkout and is created with mode
@@ -60,7 +65,9 @@ The credential manifest must be outside the checkout and is created with mode
 server URL to verify an existing manifest, or choose a new path to create fresh
 accounts. Do not upload the manifest as a CI artifact or log its contents.
 Delete the temporary fixture directory and stop only your own disposable
-container when finished.
+container when finished. After stopping this example's container, remove its
+dedicated volume with `docker volume rm "$integration_volume"`; never remove a
+volume belonging to an existing server.
 
 `serverUrl` identifies the dedicated literal-loopback test origin. The manifest
 contains `accounts` with `email`, `password`, `kdf`, and `items`; each item has
@@ -80,8 +87,9 @@ second-factor login, so repeated test runs do not rely on weakening replay
 protection. Activation currently uses the previous time step accepted by the
 dedicated server's standard one-step drift allowance.
 
-The Rust live test is explicitly ignored during ordinary unit runs. Only the
-command above executes it. A zero-test or skipped-test run is not evidence of
+Both Rust live tests are explicitly ignored during ordinary unit runs. The
+command above executes both the personal-vault and authenticator-login tests.
+A zero-test or skipped-test run is not evidence of
 real server compatibility. The fixture helper supports no production server
 URL, stores no real user credentials and cannot validate KDE/GNOME/Wayland or
 Flatpak behavior.

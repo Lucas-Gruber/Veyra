@@ -19,7 +19,7 @@ These are actual results from the Debian 13 x86_64 cloud instance. Remote CI, pu
 | Native clipboard | Own unchanged value clears after 30s; external replacement preserved; lock conditionally clears |
 | Independent fixtures | Fresh pinned venv verified 3 accounts/2 KDFs/6 encrypted entries, actual 2FA and four output/origin safety rejections |
 | GitHub Actions YAML | actionlint 1.7.12 passed; tool archive checksum verified |
-| Frontend audit | Exit 0 at high threshold; one low Windows esbuild development-server advisory remains |
+| Frontend audit | Exit 0 at high threshold; low-severity dependency advisories remain, including Windows esbuild development-server behavior |
 | Cargo audit | **Exit 1: RUSTSEC-2023-0071 rsa 0.10.0-rc.19**, no fixed upstream upgrade; five additional maintenance/unsoundness warnings |
 | Flatpak metadata | Desktop/AppStream/manifest local validation passed |
 | Flatpak actual sandbox | Blocked in cloud by read-only user-namespace uid-map setup; no sandbox bypass |
@@ -29,7 +29,7 @@ Browser IPC fixtures validate UI behavior only; they are not evidence of real au
 
 The pinned reference image is `ghcr.io/dani-garcia/vaultwarden:1.37.4@sha256:efb3cde962015fcc036b2ea625242248611943b27212ebf4392841fb30fad055`. Current tests use the official GPL SDK commit recorded in Cargo.toml/Cargo.lock. Future compatibility is checked by the daily baseline/latest-stable workflow, not guaranteed by a version range.
 
-The failed Cargo audit remains a release blocker. No advisory suppression or release tag is justified by these results. CI is arranged so independent build/packaging checks can still run while publication requires all gates to succeed.
+The failed Cargo audit remains a release blocker. Source candidate tags and unpublished drafts do not waive it: an installable release requires all validation gates to succeed. No advisory suppression is used. CI is arranged so independent build/packaging checks can still run while publication requires all gates to succeed.
 
 ## First remote CI diagnosis
 
