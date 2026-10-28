@@ -1,20 +1,20 @@
-# Current-instance validation — 2026-10-27
+# Current-instance validation — 2026-10-28
 
 These are actual results from the Debian 13 x86_64 cloud instance. Remote CI, publication, a new task, Flatpak and desktop compositors are separate claims.
 
 | Check | Outcome |
 | --- | --- |
-| Frozen pnpm installation | Passed with node-forge 1.4.1 patch; no high-severity advisory ignore |
+| Frozen pnpm installation | Empty-cache installation passed after the 2026-10-28 age cutoff, including all 1,025 supply-chain policy entries; no age exception or advisory ignore |
 | Strict TypeScript / ESLint | Passed |
-| Search unit suite | 8 passed |
+| Frontend unit suite | 33 passed: 8 search and 25 coordinated-versioning cases |
 | Nuxt static generation | Passed |
-| Browser E2E | 7 passed: five demo/keyboard/persistence cases plus two explicitly mocked desktop-IPC UI contract cases |
+| Browser E2E | 11 passed on the alpha UI: five demo/keyboard/persistence, two mocked desktop-IPC connection and four About/update cases |
 | Cargo formatting / Clippy all targets, warnings denied | Passed |
-| Default Rust suite | 16 passed; 2 live integration tests explicitly excluded from default execution |
+| Default Rust suite | 24 passed; 2 live integration tests explicitly excluded from default execution |
 | Live Rust integration | Both tests executed and passed against actual Vaultwarden 1.37.4: PBKDF2/Argon2, account/per-item keys, fields/TOTP, sync, wrong password, expiry, lock, actual authenticator challenge/wrong code/correct code |
 | Cipher integrity behavior | Corrupted MAC rejects refresh; previous complete snapshot remains intact |
 | Final strict-mode guard | Real authentication/sync/decryption revalidated after adding explicit SDK strict-flag verification |
-| Native embedded debug build | Passed |
+| Native embedded builds | Debug and optimized release builds passed |
 | Native UI with actual server | Form login, real decrypted entries, exact clipboard field, separate Quick Access, manual sync and cross-window locking passed under Xvfb/DBus |
 | Native clipboard | Own unchanged value clears after 30s; external replacement preserved; lock conditionally clears |
 | Independent fixtures | Fresh pinned venv verified 3 accounts/2 KDFs/6 encrypted entries, actual 2FA and four output/origin safety rejections |
@@ -42,3 +42,34 @@ The About/update implementation passed 8 native update tests, 25 versioning test
 The native About screen was exercised against the real public GitHub HTTPS API while the vault was locked. It displayed the actual `0.1.0-alpha.1` runtime version, Linux/x86_64/GPL metadata and a successful “No published releases yet” response. Browser preview made zero GitHub requests. UI fixtures additionally exercised available updates, automatic-check opt-out and explicit network failure without a false “up to date.”
 
 The compatibility pipeline on commit `514299c` completed both real server tests on GitHub (run `40457861341`, job `122035483340`). Source candidate tagging and draft preparation do not change the known audit/minimum-age/publication gates.
+
+## Personal-key hardening and CI follow-up — 2026-10-28
+
+Personal-only sessions now initialize only the AES user key through the unchanged
+official SDK key-store APIs. The unused account RSA private key is not unwrapped
+or imported. The [source assessment](rsa-assessment.md) records the reviewed
+paths and their limits; the RSA advisory is still a release blocker.
+
+The updated code passed 24 default Rust tests and both separately executed live
+Vaultwarden tests. Live assertions verify AES-key presence, account RSA/signing-key
+absence, full snapshot and password preservation after corrupted MAC/RSA-envelope
+responses, and AES-key removal on lock. Rustfmt, Clippy with warnings denied,
+TypeScript, ESLint, 33 frontend unit tests and coordinated-version checks passed.
+
+Both the original alpha candidate's full Tauri optimized build and the hardened
+native optimized build succeeded. The updated release binary was exercised in a
+private D-Bus/Xvfb host session: separate Quick Access, demo search, native
+clipboard copying and explicit-lock clearing passed. This is a native host
+check, not an installed Flatpak test or evidence of real GNOME/KDE Wayland support.
+The release source-archive procedure also produced a relocatable vendor
+configuration whose complete 698-package Cargo graph resolved offline.
+
+CI now audits the frontend lockfile without installing dependencies or running
+lifecycle scripts; the Linux build retains frozen installation and the explicit
+1,440-minute release-age policy. Rust CI disables incremental artifacts and debug
+symbols to reduce disk use without changing the tests or release profile.
+
+After the 2026-10-28 04:44:07 UTC cutoff, an isolated checkout with an empty pnpm
+store downloaded the dependency graph and passed all 1,025 supply-chain entries
+in a frozen installation. Coordinated-version validation also passed. This
+resolves the package-age blocker; it does not resolve the separate RSA audit.

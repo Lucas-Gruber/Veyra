@@ -7,12 +7,11 @@ use bitwarden_api_api::models::{
 };
 use bitwarden_core::{
     key_management::{
-        account_cryptographic_state::WrappedAccountCryptographicState,
-        MasterPasswordAuthenticationData, SymmetricKeySlotId,
+        MasterPasswordAuthenticationData, PrivateKeySlotId, SigningKeySlotId, SymmetricKeySlotId,
     },
     Client, ClientSettings, DeviceType,
 };
-use bitwarden_crypto::{Decryptable, EncString, Kdf, MasterKey};
+use bitwarden_crypto::{Decryptable, EncString, Kdf, MasterKey, SymmetricCryptoKey};
 use bitwarden_vault::{Cipher, CipherRepromptType, CipherType, CipherView, VaultClientExt};
 use reqwest::{Client as HttpClient, Response};
 use serde::{Deserialize, Serialize};
@@ -436,13 +435,24 @@ impl Vaultwarden {
             let user_key = master_key
                 .decrypt_user_key(wrapped_key)
                 .map_err(|_| decryption_error())?;
-            crypto_client
-                .internal
-                .initialize_user_crypto_decrypted_key(
-                    user_key,
-                    WrappedAccountCryptographicState::V1 { private_key },
-                    &None,
-                )
+            // This personal-vault boundary has no organization/sharing operation.
+            // The encrypted privateKey envelope was parsed above for the account
+            // format check; do not decrypt its contents or import/retain the unused
+            // RSA private key. Initialize only the AES key with official SDK APIs,
+            // preserving the V1 initializer's key-type and fresh-store requirements.
+            if !matches!(user_key, SymmetricCryptoKey::Aes256CbcHmacKey(_)) {
+                return Err(decryption_error());
+            }
+            let mut context = crypto_client.internal.get_key_store().context_mut();
+            if context.has_symmetric_key(SymmetricKeySlotId::User)
+                || context.has_private_key(PrivateKeySlotId::UserPrivateKey)
+                || context.has_signing_key(SigningKeySlotId::UserSigningKey)
+            {
+                return Err(decryption_error());
+            }
+            let local_key = context.add_local_symmetric_key(user_key);
+            context
+                .persist_symmetric_key(local_key, SymmetricKeySlotId::User)
                 .map_err(|_| decryption_error())
         })
         .await
@@ -884,6 +894,22 @@ mod tests {
             .unwrap()
     }
 
+    fn assert_personal_key_store(vault: &Vaultwarden) {
+        let context = vault.client.internal.get_key_store().context();
+        assert!(
+            context.has_symmetric_key(SymmetricKeySlotId::User),
+            "the personal AES key must be available"
+        );
+        assert!(
+            !context.has_private_key(PrivateKeySlotId::UserPrivateKey),
+            "personal-only sessions must not retain the unused account RSA key"
+        );
+        assert!(
+            !context.has_signing_key(SigningKeySlotId::UserSigningKey),
+            "personal-only sessions must not initialize unsupported signing keys"
+        );
+    }
+
     #[tokio::test]
     async fn responses_are_bounded_for_declared_and_chunked_bodies() {
         let declared = http_response(
@@ -931,6 +957,7 @@ mod tests {
             )
             .await
             .expect("real server login and complete supported sync");
+            assert_personal_key_store(&vault);
             assert!(
                 vault.client.flags().get().await.strict_cipher_decryption,
                 "strict authenticated decryption must be active"
@@ -980,31 +1007,60 @@ mod tests {
                 .await
                 .unwrap();
             let body = bounded_body(response, MAX_SYNC_BYTES).await.unwrap();
-            let mut malformed: Value = serde_json::from_slice(&body).unwrap();
-            malformed["ciphers"][1]["name"] = Value::String("2.AAAAAAAAAAAAAAAAAAAAAA==|AAAAAAAAAAAAAAAAAAAAAA==|AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=".into());
-            let body = serde_json::to_vec(&malformed).unwrap();
-            let mut wire = format!("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len()).into_bytes();
-            wire.extend_from_slice(&body);
-            vault.server = single_response_server(wire);
-            let before: Vec<_> = vault.metadata().into_iter().map(|item| item.id).collect();
-            assert!(matches!(vault.sync().await, Err(error) if error.code == "decryption_failed"));
-            assert_eq!(
-                before,
-                vault
-                    .metadata()
-                    .into_iter()
-                    .map(|item| item.id)
-                    .collect::<Vec<_>>()
-            );
+            let valid_sync: Value = serde_json::from_slice(&body).unwrap();
+            let before = serde_json::to_value(vault.metadata()).unwrap();
+            // A hostile response must not switch symmetric credential/key
+            // decryption to an RSA envelope (types 3..6), or mutate the snapshot.
+            for (field, value) in [
+                ("name", "2.AAAAAAAAAAAAAAAAAAAAAA==|AAAAAAAAAAAAAAAAAAAAAA==|AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="),
+                ("name", "3.AA=="),
+                ("key", "4.AA=="),
+                ("name", "5.AA==|AA=="),
+                ("key", "6.AA==|AA=="),
+            ] {
+                let mut malformed = valid_sync.clone();
+                malformed["ciphers"][1][field] = Value::String(value.into());
+                let body = serde_json::to_vec(&malformed).unwrap();
+                let mut wire = format!("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len()).into_bytes();
+                wire.extend_from_slice(&body);
+                vault.server = single_response_server(wire);
+                assert!(matches!(vault.sync().await, Err(error) if error.code == "decryption_failed"));
+                assert!(
+                    before == serde_json::to_value(vault.metadata()).unwrap(),
+                    "failed refresh must preserve the complete metadata snapshot"
+                );
+                assert_personal_key_store(&vault);
+                let preserved_password = vault
+                    .field(
+                        expected_items[0]["cipherId"].as_str().unwrap(),
+                        Field::Password,
+                    )
+                    .await
+                    .expect("the original stored cipher must remain decryptable");
+                assert!(
+                    *preserved_password == expected_items[0]["password"].as_str().unwrap(),
+                    "failed refresh must preserve the original stored password"
+                );
+            }
             vault.server = original_server;
             // Manual refresh performs another actual authenticated request.
             vault.sync().await.expect("second synchronization succeeds");
+            assert_personal_key_store(&vault);
             let id = expected_items[0]["cipherId"].as_str().unwrap();
             vault.expires_at = std::time::Instant::now() - Duration::from_secs(1);
             assert!(
                 matches!(vault.field(id, Field::Password).await, Err(error) if error.code == "session_expired")
             );
             vault.lock();
+            assert!(
+                !vault
+                    .client
+                    .internal
+                    .get_key_store()
+                    .context()
+                    .has_symmetric_key(SymmetricKeySlotId::User),
+                "explicit locking must remove the personal AES key"
+            );
             assert!(vault.metadata().is_empty());
             assert!(vault.field(id, Field::Password).await.is_err());
             let wrong = Vaultwarden::connect_inner(
@@ -1084,6 +1140,7 @@ mod tests {
         )
         .await
         .expect("actual authenticator login succeeds");
+        assert_personal_key_store(&vault);
         let expected = &account["expected"];
         let id = expected["cipherId"].as_str().unwrap();
         assert!(vault.metadata().iter().any(|item| item.id == id));
@@ -1096,6 +1153,15 @@ mod tests {
             "password differs"
         );
         vault.lock();
+        assert!(
+            !vault
+                .client
+                .internal
+                .get_key_store()
+                .context()
+                .has_symmetric_key(SymmetricKeySlotId::User),
+            "explicit locking must remove the personal AES key"
+        );
         assert!(vault.field(id, Field::Password).await.is_err());
     }
 }

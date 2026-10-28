@@ -30,6 +30,8 @@ The previous high-severity `node-forge` signature-verification advisory **GHSA-8
 
 The connected SDK graph introduces **RUSTSEC-2023-0071** in `rsa` 0.10.0-rc.19: the Marvin timing side-channel advisory, with no fixed upgrade currently available. `cargo audit` exits **1**. The release gate remains failing; the advisory is not suppressed. Personal AES vault use does not establish a general proof of unreachable RSA risk. A supported upstream remedy or a separately reviewed resolution is required before publishing an installable release. A source candidate tag and unpublished release draft may exist while validation fails; neither means the release has passed its gates or offers an installable build.
 
+Personal-only sessions now initialize only the AES user key using the pinned official SDK's key-store APIs. They do not unwrap, import or retain the unused account RSA private key. The encrypted private-key envelope is still checked for its supported format; this does not claim verification of its unused contents. See the [scoped source assessment and regression boundaries](rsa-assessment.md). This reduces unnecessary secret handling while leaving the dependency audit and release gate intact.
+
 Additional Cargo warnings remain: unmaintained `proc-macro-error`, `zbus_names`, `zvariant`, `zvariant_derive`, and `glib` 0.18.5 `VariantStrIter` unsoundness (RUSTSEC-2024-0429). Incompatible major dependency overrides are not a safe workaround. Re-run audits and inspect actual operations before release.
 
 ## Remaining engineering gates
