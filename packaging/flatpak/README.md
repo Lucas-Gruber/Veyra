@@ -14,6 +14,10 @@ bash scripts/build-flatpak.sh src-tauri/target/release/veyra
 
 Install the pinned Node, pnpm and Rust toolchains and the native build prerequisites described in `docs/development.md` first. Packaging additionally requires `flatpak`, `flatpak-builder`, `appstreamcli`, `desktop-file-validate`, Python 3, `dbus-run-session`, Xvfb, `xdotool`, `xclip` and `timeout`. ImageMagick supplies optional failure screenshots. The script refuses to replace an existing user installation or overwrite an existing bundle; use a clean packaging account.
 
+On Ubuntu 24.04, install `librsvg2-common` explicitly when using
+`--no-install-recommends`. AppStream 1.0.2 needs its GdkPixbuf SVG decoder to compose
+the application icon; `librsvg2-2` alone does not provide that decoder.
+
 The script stages local sources with SHA-256 checksums, validates the binary architecture and matching version metadata, and invokes `flatpak-builder` with downloads disabled and sandboxing enforced. `--disable-rofiles-fuse` selects a copying cache for hosts without FUSE; it does not disable the sandbox. This packages an already-built binary; it does not claim that compilation of the Nuxt/Rust dependencies took place offline. Tagged releases also prepare a source archive containing the repository and vendored Rust dependencies; JavaScript dependencies are specified by the committed pnpm lockfile.
 
 The installed-bundle test runs under a private D-Bus/Xvfb session. It checks a separate native Quick Access window, synthetic-vault search, a real native clipboard copy and explicit-lock clearing before the clipboard timer. Real Vaultwarden authentication is verified separately by the compatibility workflow with disposable accounts. Failure prevents publication. The current cloud container cannot run the Flatpak sandbox because user-namespace uid-map writes are blocked; metadata or native-host tests do not substitute for the installed CI gate. The unresolved Cargo audit documented in `docs/security.md` also blocks publication.

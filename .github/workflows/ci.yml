@@ -88,7 +88,8 @@ jobs:
       - name: Install packaging and display tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends flatpak flatpak-builder appstream desktop-file-utils dbus-x11 xvfb xdotool xclip imagemagick
+          # Ubuntu's AppStream 1.0.2 needs the GdkPixbuf SVG loader to compose our scalable icon.
+          sudo apt-get install -y --no-install-recommends flatpak flatpak-builder appstream librsvg2-common desktop-file-utils dbus-x11 xvfb xdotool xclip imagemagick
       - name: Install signed runtime and SDK
         run: |
           flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo

@@ -73,3 +73,11 @@ After the 2026-10-28 04:44:07 UTC cutoff, an isolated checkout with an empty pnp
 store downloaded the dependency graph and passed all 1,025 supply-chain entries
 in a frozen installation. Coordinated-version validation also passed. This
 resolves the package-age blocker; it does not resolve the separate RSA audit.
+
+GitHub run `40634187389` confirmed the fresh installation, all 70 executed tests
+and the optimized Linux build. Its Flatpak sandbox build reached AppStream
+composition, where Ubuntu 24.04 lacked the recommended SVG decoder. The exact
+AppStream 1.0.2 error was reproduced with the repository assets: composition failed
+without `librsvg2-common` and succeeded after installing only that signed distro
+package. The packaging prerequisites now include it explicitly. Installed
+Flatpak verification still requires the corrected CI run.
