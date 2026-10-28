@@ -50,10 +50,19 @@ export CARGO_HOME=/workspace/.toolchains/cargo
 export RUSTUP_HOME=/workspace/.toolchains/rustup
 export PATH="$CARGO_HOME/bin:$PATH"
 . /workspace/.toolchains/linux-env.sh
+export npm_config_cache=/workspace/.cache/npm
+export XDG_CACHE_HOME=/workspace/.cache
+export XDG_DATA_HOME=/workspace/.local/share
+export pnpm_config_store_dir=/workspace/.cache/pnpm/store
 cd /workspace/Veyra
 pnpm install --frozen-lockfile --store-dir /workspace/.cache/pnpm/store
 pnpm exec nuxt prepare
 ```
+
+Keep these cache exports for later pnpm commands. pnpm 11 reads
+`pnpm_config_store_dir`; `npm_config_store_dir` does not configure its store.
+Using a different store after installation makes pnpm attempt to recreate
+`node_modules`, which fails in a non-interactive restricted home directory.
 
 The retained `/workspace/.toolchains/bootstrap-linux.sh` can refresh the local Linux dependencies. The native WebKit helper binaries use absolute paths; `/workspace/.toolchains/run-linux.sh` maps only that helper directory using PRoot. On this machine run a built application with:
 
