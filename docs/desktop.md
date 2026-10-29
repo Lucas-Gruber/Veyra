@@ -11,3 +11,29 @@ Locking cancels pending work and signs out. Both windows discard metadata and sh
 The browser UI is a sample-data preview only. Its clipboard cannot be cleared reliably. Connected operations require Rust, and a real connection failure never switches to sample data.
 
 The native application was exercised under a private cloud X11 display, including real server login/copy/sync/Quick Access/lock. This does not establish GNOME/KDE/Wayland, multiple-monitor, accessibility or Flatpak portal compatibility. No tray, startup integration, Secret Service, system-wide shortcut or browser Native Messaging feature is claimed yet.
+
+## KDE Wayland with NVIDIA: startup protocol error
+
+A startup failure ending with `Error 71 (Protocol error) dispatching to Wayland display` can match an unresolved WebKitGTK/graphics-driver interaction. This has been reported on KDE/Wayland with NVIDIA, including current WebKitGTK versions: [WebKit #280210](https://bugs.webkit.org/show_bug.cgi?id=280210), [Tauri #10702](https://github.com/tauri-apps/tauri/issues/10702). The message alone does not identify the exact protocol violation.
+
+Try the following per-launch renderer workaround first:
+
+```sh
+WEBKIT_DISABLE_DMABUF_RENDERER=1 pnpm desktop:dev
+# Installed Flatpak:
+flatpak run --env=WEBKIT_DISABLE_DMABUF_RENDERER=1 io.github.LucasGruber.Veyra
+```
+
+This disables WebKit's DMA-BUF renderer. It can reduce animation performance or introduce rendering artifacts on some driver/runtime combinations. The setting applies only to that launch.
+
+If startup still fails or the window becomes blank/transparent, test the NVIDIA-specific explicit-sync workaround separately:
+
+```sh
+__NV_DISABLE_EXPLICIT_SYNC=1 pnpm desktop:dev
+# Installed Flatpak:
+flatpak run --env=__NV_DISABLE_EXPLICIT_SYNC=1 io.github.LucasGruber.Veyra
+```
+
+Test one option at a time with other graphics overrides removed. The second option keeps the DMA-BUF rendering path, but reports also describe flicker on some configurations. Both leave WebKit's security sandbox enabled. Neither is a general application-code fix or a guarantee for every NVIDIA/Wayland setup.
+
+The DMA-BUF option passed Veyra's main/Quick Access, search, clipboard and lock smoke on X11/Xvfb. Actual NVIDIA/Wayland behavior requires verification on an affected machine.

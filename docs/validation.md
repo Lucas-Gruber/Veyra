@@ -156,3 +156,14 @@ decision accepts only the recorded finding. A clean future audit passes without
 this policy, including new informational warnings. Actionlint passed, and an
 independent review verified all 70 protected-file hashes and the evaluator hash.
 Application, dependency and packaging inputs remain identical to `d750600`.
+
+## NVIDIA/Wayland startup report — 2026-10-29
+
+A user reported GTK assertions followed by Wayland protocol error 71 on
+CachyOS/KDE/Wayland/NVIDIA while starting the development app. Upstream WebKit
+and Tauri track matching graphics-stack failures; the exact cause on this
+machine is not yet confirmed. The per-launch DMA-BUF workaround passed the
+native X11/Xvfb main/Quick Access, search, clipboard and explicit-lock smoke.
+This does not verify NVIDIA/Wayland behavior. Separate renderer/explicit-sync
+workarounds and their limits are documented in [desktop.md](desktop.md).
+No native code or published release files changed.
