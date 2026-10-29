@@ -16,7 +16,15 @@ The native application was exercised under a private cloud X11 display, includin
 
 A startup failure ending with `Error 71 (Protocol error) dispatching to Wayland display` can match an unresolved WebKitGTK/graphics-driver interaction. This has been reported on KDE/Wayland with NVIDIA, including current WebKitGTK versions: [WebKit #280210](https://bugs.webkit.org/show_bug.cgi?id=280210), [Tauri #10702](https://github.com/tauri-apps/tauri/issues/10702). The message alone does not identify the exact protocol violation.
 
-Try the following per-launch renderer workaround first:
+Veyra now applies Noryn's Linux startup defaults before GTK initializes: use
+X11/XWayland when `DISPLAY` is available, and disable WebKit's DMA-BUF renderer.
+Explicit `GDK_BACKEND` and `WEBKIT_DISABLE_DMABUF_RENDERER` values are preserved.
+This avoids requiring an environment prefix on every normal development or
+installed launch. The WebKit security sandbox stays enabled. The GTK assertion
+alone does not prove the cause of the fatal protocol error; see also the upstream
+[explicit-sync fix](https://bugs.webkit.org/show_bug.cgi?id=324551).
+
+The equivalent explicit launch is:
 
 ```sh
 WEBKIT_DISABLE_DMABUF_RENDERER=1 pnpm desktop:dev
@@ -24,14 +32,17 @@ WEBKIT_DISABLE_DMABUF_RENDERER=1 pnpm desktop:dev
 flatpak run --env=WEBKIT_DISABLE_DMABUF_RENDERER=1 io.github.LucasGruber.Veyra
 ```
 
-This disables WebKit's DMA-BUF renderer. It can reduce animation performance or introduce rendering artifacts on some driver/runtime combinations. The setting applies only to that launch.
+Disabling WebKit's DMA-BUF renderer can reduce animation performance or introduce
+rendering artifacts on some driver/runtime combinations. To test native Wayland
+with the normal renderer, explicitly set `GDK_BACKEND=wayland` and
+`WEBKIT_DISABLE_DMABUF_RENDERER=0` for that launch.
 
 If startup still fails or the window becomes blank/transparent, test the NVIDIA-specific explicit-sync workaround separately:
 
 ```sh
-__NV_DISABLE_EXPLICIT_SYNC=1 pnpm desktop:dev
+GDK_BACKEND=wayland WEBKIT_DISABLE_DMABUF_RENDERER=0 __NV_DISABLE_EXPLICIT_SYNC=1 pnpm desktop:dev
 # Installed Flatpak:
-flatpak run --env=__NV_DISABLE_EXPLICIT_SYNC=1 io.github.LucasGruber.Veyra
+flatpak run --env=GDK_BACKEND=wayland --env=WEBKIT_DISABLE_DMABUF_RENDERER=0 --env=__NV_DISABLE_EXPLICIT_SYNC=1 io.github.LucasGruber.Veyra
 ```
 
 Test one option at a time with other graphics overrides removed. The second option keeps the DMA-BUF rendering path, but reports also describe flicker on some configurations. Both leave WebKit's security sandbox enabled. Neither is a general application-code fix or a guarantee for every NVIDIA/Wayland setup.
