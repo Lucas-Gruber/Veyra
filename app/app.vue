@@ -43,6 +43,7 @@ const selected = computed(() => filtered.value.find(item => item.id === selected
 const isLight = computed(() => prefs.appearance === 'light' || (prefs.appearance === 'system' && !systemDark.value))
 watch(vault.locked, () => { query.value = ''; hasSelected.value = false; sidebarOpen.value = false })
 watch(isLight, light => document.documentElement.classList.toggle('light', light))
+watch(() => prefs.textSize, size => { document.documentElement.style.fontSize = `${size}px` })
 watch(activeView, () => { query.value = ''; hasSelected.value = false; sidebarOpen.value = false })
 function selectItem(id: string) { selectedId.value = id; hasSelected.value = true }
 async function openQuick() { if (!(await vault.showQuickAccess())) quickOpen.value = true }
@@ -84,6 +85,7 @@ let stopAutomaticUpdateChecks: (() => void) | undefined
 function onSystemTheme(event: MediaQueryListEvent) { systemDark.value = event.matches }
 onMounted(async () => {
   prefs.load()
+  document.documentElement.style.fontSize = `${prefs.textSize}px`
   stopAutomaticUpdateChecks = appUpdates.startAutomaticChecks()
   quickStandalone.value = new URLSearchParams(window.location.search).get('window') === 'quick'
   media = window.matchMedia('(prefers-color-scheme: dark)')

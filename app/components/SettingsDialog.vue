@@ -33,6 +33,7 @@ function onKey(event: KeyboardEvent) {
           <h4>Color theme</h4><div class="theme-options">
             <button v-for="theme in [{ value: 'light' as const, icon: Sun, name: 'Light' }, { value: 'dark' as const, icon: Moon, name: 'Dark' }, { value: 'system' as const, icon: Monitor, name: 'System' }]" :key="theme.value" :class="['theme-option', theme.value, { selected: prefs.appearance === theme.value }]" :aria-pressed="prefs.appearance === theme.value" @click="prefs.appearance = theme.value; prefs.persist()"><div class="theme-preview"><span/><span/><span/></div><span><component :is="theme.icon" :size="15"/>{{ theme.name }}</span></button>
           </div>
+          <h4>Text size</h4><div class="segmented-control" aria-label="Text size"><button v-for="size in [14, 16, 18] as const" :key="size" :class="{ active: prefs.textSize === size }" :aria-pressed="prefs.textSize === size" @click="prefs.textSize = size; prefs.persist()">{{ size === 14 ? 'Small' : size === 16 ? 'Medium' : 'Large' }}</button></div>
           <h4>Surface</h4><div class="segmented-control"><button v-for="surface in ['modern', 'glass'] as const" :key="surface" :class="{ active: prefs.surface === surface }" @click="prefs.surface = surface; prefs.persist()">{{ surface === 'modern' ? 'Modern' : 'Glass' }}</button></div><p class="setting-hint">Glass uses subtle in-window translucency. Desktop blur depends on your compositor.</p>
           <div class="setting-note"><Palette :size="18"/><span>Quietly violet. Veyra’s accent keeps focus where it belongs.</span></div>
         </template>

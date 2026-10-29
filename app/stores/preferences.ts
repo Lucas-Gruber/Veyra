@@ -5,6 +5,7 @@ export type Surface = 'modern' | 'glass'
 export const usePreferences = defineStore('preferences', () => {
   const appearance = ref<Appearance>('dark')
   const surface = ref<Surface>('modern')
+  const textSize = ref<14 | 16 | 18>(16)
   const clipboardTimeout = ref(30)
   const automaticUpdateChecks = ref(true)
   const defaultAction = ref<'password' | 'username' | 'website'>('password')
@@ -12,13 +13,14 @@ export const usePreferences = defineStore('preferences', () => {
     try {
       const value = JSON.parse(localStorage.getItem('veyra:preferences') || '{}') as Record<string, unknown>
       if (typeof value.automaticUpdateChecks === 'boolean') automaticUpdateChecks.value = value.automaticUpdateChecks
+      if ([14, 16, 18].includes(Number(value.textSize))) textSize.value = Number(value.textSize) as typeof textSize.value
       if (['system', 'dark', 'light'].includes(String(value.appearance))) appearance.value = value.appearance as Appearance
       if (['modern', 'glass'].includes(String(value.surface))) surface.value = value.surface as Surface
       if (['password', 'username', 'website'].includes(String(value.defaultAction))) defaultAction.value = value.defaultAction as typeof defaultAction.value
     } catch { /* Invalid preferences fall back to safe defaults. */ }
   }
   function persist() {
-    localStorage.setItem('veyra:preferences', JSON.stringify({ appearance: appearance.value, surface: surface.value, defaultAction: defaultAction.value, automaticUpdateChecks: automaticUpdateChecks.value }))
+    localStorage.setItem('veyra:preferences', JSON.stringify({ appearance: appearance.value, surface: surface.value, textSize: textSize.value, defaultAction: defaultAction.value, automaticUpdateChecks: automaticUpdateChecks.value }))
   }
-  return { appearance, surface, clipboardTimeout, defaultAction, automaticUpdateChecks, load, persist }
+  return { appearance, surface, textSize, clipboardTimeout, defaultAction, automaticUpdateChecks, load, persist }
 })

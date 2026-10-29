@@ -9,3 +9,10 @@ Spacing, restrained corner radii and subtle focus rings are shared by buttons, f
 Motion is brief and functional; reduced-motion media queries remove transitions and animations. Every icon-only control has an accessible name. All credential values are masked by default, explicit reveals expire and locking removes visible metadata. Demo notices remain visible in locked, unlocked and quick modes.
 
 The CSS is the source of truth for current tokens. Contrast, assistive technology and HiDPI behavior still need independent testing on KDE and GNOME; browser keyboard tests alone do not establish desktop accessibility conformance.
+# Text sizing
+
+Like Noryn, typography uses rem units relative to a user-selectable base size.
+The default base is 16px; Settings → Appearance offers 14px, 16px and 18px.
+Secondary text starts at 12px at the default size. The preference contains no
+vault data. Navigation scrolls when text or folder lists exceed window height.
+
