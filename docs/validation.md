@@ -164,6 +164,10 @@ CachyOS/KDE/Wayland/NVIDIA while starting the development app. Upstream WebKit
 and Tauri track matching graphics-stack failures; the exact cause on this
 machine is not yet confirmed. The per-launch DMA-BUF workaround passed the
 native X11/Xvfb main/Quick Access, search, clipboard and explicit-lock smoke.
-This does not verify NVIDIA/Wayland behavior. Separate renderer/explicit-sync
-workarounds and their limits are documented in [desktop.md](desktop.md).
+The affected user subsequently confirmed that the app starts with
+`WEBKIT_DISABLE_DMABUF_RENDERER=1 pnpm desktop:dev` on that setup. This is a
+user-confirmed startup result, not an automated NVIDIA/Wayland test or evidence
+for focus, clipboard, shortcuts or general compositor compatibility. Separate
+renderer/explicit-sync workarounds and their limits are documented in
+[desktop.md](desktop.md).
 No native code or published release files changed.

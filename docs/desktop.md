@@ -36,4 +36,4 @@ flatpak run --env=__NV_DISABLE_EXPLICIT_SYNC=1 io.github.LucasGruber.Veyra
 
 Test one option at a time with other graphics overrides removed. The second option keeps the DMA-BUF rendering path, but reports also describe flicker on some configurations. Both leave WebKit's security sandbox enabled. Neither is a general application-code fix or a guarantee for every NVIDIA/Wayland setup.
 
-The DMA-BUF option passed Veyra's main/Quick Access, search, clipboard and lock smoke on X11/Xvfb. Actual NVIDIA/Wayland behavior requires verification on an affected machine.
+The DMA-BUF option passed Veyra's main/Quick Access, search, clipboard and lock smoke on X11/Xvfb. On 2026-10-29, the affected user also confirmed that `WEBKIT_DISABLE_DMABUF_RENDERER=1 pnpm desktop:dev` starts the app on CachyOS/KDE/Wayland/NVIDIA. This confirms startup on that setup; focus, clipboard behavior and other Wayland features still require separate verification there.
