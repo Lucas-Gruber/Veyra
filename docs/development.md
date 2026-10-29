@@ -78,7 +78,7 @@ Favorites and recent-item history in this synthetic preview are local to each We
 
 ## Contribution boundaries
 
-Follow `AGENTS.md`. Keep synthetic metadata visibly labeled. Sensitive operations belong in Rust and must retain explicit authorization, generation checks and real integration tests. Frontend storage is restricted to validated appearance/action preferences; transient sign-in form inputs must be cleared. Run required validation after changes. The integration preview does not provide a production-security guarantee. See docs/security.md for the failing RSA audit release gate.
+Follow `AGENTS.md`. Keep synthetic metadata visibly labeled. Sensitive operations belong in Rust and must retain explicit authorization, generation checks and real integration tests. Frontend storage is restricted to validated appearance/action preferences; transient sign-in form inputs must be cleared. Run required validation after changes. The integration preview does not provide a production-security guarantee. See docs/security.md for the raw RSA finding and the source-bound Alpha3 acceptance used by CI.
 
 ## Real server regression tests
 

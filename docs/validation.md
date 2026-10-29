@@ -139,3 +139,20 @@ security evidence. All five checksum entries passed after downloading the files
 again. Their assessment and validation metadata precede the owner's decision;
 the `publication_authorized: false` field describes that earlier snapshot. The
 release notes record the subsequent Alpha3-only approval.
+
+## Applying the accepted Alpha3 finding to CI — 2026-10-29
+
+The initial manual publication left the validation workflow red because the raw
+Rust audit still exited 1. Following the owner's failure report, CI now evaluates
+the same Alpha3-only acceptance separately from the unsuppressed audit. The
+fixed policy binds the reviewed application, SDK, Cargo graph, exact finding and
+build inputs. It cannot accept a different version or changed finding. Raw JSON,
+stderr and the true exit code remain downloadable, and the summary identifies
+the accepted risk. The immutable published tag and binaries are unchanged.
+
+The policy evaluator passed 17 negative/transition tests and an evaluation of
+the actual 2026-10-29 audit report. The real report retains exit 1; the separate
+decision accepts only the recorded finding. A clean future audit passes without
+this policy, including new informational warnings. Actionlint passed, and an
+independent review verified all 70 protected-file hashes and the evaluator hash.
+Application, dependency and packaging inputs remain identical to `d750600`.

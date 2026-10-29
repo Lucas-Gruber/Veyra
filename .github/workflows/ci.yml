@@ -59,6 +59,8 @@ jobs:
           if-no-files-found: error
   security:
     runs-on: ubuntu-24.04
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -69,12 +71,41 @@ jobs:
         # Audit the committed lockfile without installing packages or running lifecycle scripts.
         # The Linux build separately enforces the frozen lockfile and release-age policy.
         run: pnpm audit --audit-level high
-      - name: Audit Rust dependencies
+      - name: Check scoped audit decisions
+        if: ${{ !cancelled() }}
+        run: python3 -m unittest discover -s tests/security -p 'test_audit_exception.py'
+      - name: Install pinned Rust audit tool
+        id: rust_audit_tool
         if: ${{ !cancelled() }}
         run: |
           rustup show active-toolchain
           cargo install cargo-audit --locked --version 0.22.2
-          cargo audit --file src-tauri/Cargo.lock
+      - name: Collect raw Rust dependency audit
+        id: rust_audit_raw
+        if: ${{ !cancelled() && steps.rust_audit_tool.outcome == 'success' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/veyra-cargo-audit"
+          set +e
+          cargo audit --json --file src-tauri/Cargo.lock > "$RUNNER_TEMP/veyra-cargo-audit/cargo-audit.json" 2> "$RUNNER_TEMP/veyra-cargo-audit/cargo-audit.stderr"
+          audit_exit=$?
+          set -e
+          printf '%s\n' "$audit_exit" > "$RUNNER_TEMP/veyra-cargo-audit/cargo-audit.exit"
+      - name: Enforce recorded Alpha3 audit policy
+        if: ${{ !cancelled() && steps.rust_audit_raw.outcome == 'success' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .security/check_audit_exception.py --repo . --policy .security/rsa-alpha3-policy.json --report "$RUNNER_TEMP/veyra-cargo-audit/cargo-audit.json" --stderr "$RUNNER_TEMP/veyra-cargo-audit/cargo-audit.stderr" --audit-exit "$(cat "$RUNNER_TEMP/veyra-cargo-audit/cargo-audit.exit")" | tee "$RUNNER_TEMP/veyra-cargo-audit/decision.txt"
+          head -n 1 "$RUNNER_TEMP/veyra-cargo-audit/decision.txt" >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve raw Rust audit evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: veyra-cargo-audit
+          path: ${{ runner.temp }}/veyra-cargo-audit/
+          if-no-files-found: error
   flatpak:
     needs: linux
     runs-on: ubuntu-24.04
