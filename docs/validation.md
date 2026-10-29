@@ -121,3 +121,21 @@ lockfile and all 1,025 supply-chain policy checks; registry metadata still
 requires network access as documented in [source-build.md](source-build.md).
 Third-party license files and notices were verified in the archive. This
 packaging evidence does not resolve the failed audit or authorize publication.
+
+## Alpha3 owner publication decision — 2026-10-29
+
+The owner explicitly answered “Lass den audit und bau es” to the specific question
+about releasing Alpha3 with a documented RSA-risk exception. This authorizes
+manual publication only of unchanged `v0.1.0-alpha.3` /
+`d7506000f7b5b66ef8958339949079811e20ca0d`, using published SDK `rust-v4.0.0` at
+`b865d1db0025d9d12bea871a3a131c05aaeed205`. The fresh audit remains exit 1 for
+`RUSTSEC-2023-0071` / `rsa` 0.10.0-rc.19, with four unmaintained and one unsoundness
+warning. This acceptance does not fix the dependency or certify the application;
+audits and automatic publication gates remain unchanged for future releases.
+
+[Draft preparation run 40914689543](https://github.com/Lucas-Gruber/Veyra/actions/runs/40914689543)
+successfully attached the tested Flatpak, source archive, checksums and original
+security evidence. All five checksum entries passed after downloading the files
+again. Their assessment and validation metadata precede the owner's decision;
+the `publication_authorized: false` field describes that earlier snapshot. The
+release notes record the subsequent Alpha3-only approval.
