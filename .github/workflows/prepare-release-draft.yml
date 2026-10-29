@@ -109,7 +109,9 @@ jobs:
               flatpak = bundle.read(filename)
               assert hashlib.sha256(flatpak).hexdigest() == match[1], 'Flatpak checksum mismatch'
               (root / filename).write_bytes(flatpak)
-          (root / f'Veyra-{version}-cargo-audit.log').write_bytes(gh('api', f"repos/{repo}/actions/jobs/{security['id']}/logs"))
+          # Preserve original ANSI bytes in the evidence file; never render this
+          # raw log in the terminal. Newer gh versions require this explicit flag.
+          (root / f'Veyra-{version}-cargo-audit.log').write_bytes(gh('api', '--allow-escape-sequences', f"repos/{repo}/actions/jobs/{security['id']}/logs"))
           (root / f'Veyra-{version}-validation.json').write_text(json.dumps({
               'source_commit': commit, 'tag': tag, 'source_run': run['html_url'],
               'draft_api_url': draft['apiUrl'],
