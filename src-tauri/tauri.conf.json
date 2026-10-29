@@ -10,6 +10,7 @@
     "frontendDist": "../.output/public"
   },
   "app": {
+    "enableGTKAppId": true,
     "withGlobalTauri": false,
     "windows": [
       {

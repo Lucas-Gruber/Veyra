@@ -1,5 +1,12 @@
 # Desktop behavior and limits
 
+The GTK application ID matches the packaged desktop entry and icon ID, including
+Quick Access, so Linux docks can associate both windows with Veyra. Native
+packages install their launcher/icon. For an unpackaged local build, register it
+once with `pnpm desktop:integrate /absolute/path/to/veyra`; rerun after moving the
+binary. A debug binary still needs the Nuxt development server running. This
+installs only the Veyra launcher and icon under the user's XDG data directory.
+
 The native main and Quick Access WebViews share one Rust session and metadata snapshot. Tauri capabilities allow only scoped local commands and session event listeners; there is no shell/filesystem/generic clipboard/opener IPC exposed. Website opening is a native operation restricted to a known item's HTTPS URL and an active session.
 
 `Ctrl Alt Space` works while Veyra has focus. The floating window uses supported Tauri show/focus/position calls; a compositor may reject focus or placement. There is no unsafe global interception. System-wide shortcuts need the XDG GlobalShortcuts portal and/or explicit compositor setup, not a claim inferred from an in-app shortcut. See https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.GlobalShortcuts.html .

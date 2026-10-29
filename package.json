@@ -19,6 +19,7 @@
     "test:e2e": "playwright test",
     "tauri": "tauri",
     "desktop:dev": "tauri dev",
+    "desktop:integrate": "bash scripts/install-desktop.sh",
     "desktop:build": "tauri build --no-bundle",
     "postinstall": "nuxt prepare",
     "version:set": "node scripts/set-version.mjs",

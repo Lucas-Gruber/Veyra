@@ -9,4 +9,4 @@ Icon=io.github.LucasGruber.Veyra
 Terminal=false
 Categories=Utility;System;Security;
 Keywords=vault;password;Vaultwarden;credentials;
-StartupWMClass=Veyra
+StartupWMClass=io.github.LucasGruber.Veyra
