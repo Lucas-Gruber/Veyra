@@ -13,6 +13,7 @@ const searchInput = ref<HTMLInputElement>()
 const dialog = ref<HTMLElement>()
 let previousFocus: HTMLElement | null = null
 let unlistenFocus: (() => void) | undefined
+let unlistenBlur: (() => void) | undefined
 const results = computed(() => vault.locked.value ? [] : searchItems(vault.items.value, query.value).slice(0, 8))
 const current = computed(() => results.value[selected.value])
 watch(query, () => { selected.value = 0; actions.value = false })
@@ -29,9 +30,10 @@ onMounted(async () => {
   if (vault.desktop.value) {
     const { listen } = await import('@tauri-apps/api/event')
     unlistenFocus = await listen('quick-access:focus', () => nextTick(() => { if (vault.locked.value) dialog.value?.querySelector<HTMLInputElement>('input')?.focus(); else searchInput.value?.focus() }))
+    unlistenBlur = await listen('quick-access:blur', () => { query.value = ''; actions.value = false; selected.value = 0 })
   }
 })
-onBeforeUnmount(() => { unlistenFocus?.(); previousFocus?.focus() })
+onBeforeUnmount(() => { unlistenFocus?.(); unlistenBlur?.(); previousFocus?.focus() })
 async function close() {
   if (props.standalone) await vault.hideQuickAccess()
   else emit('close')

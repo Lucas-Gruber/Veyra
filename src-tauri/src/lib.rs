@@ -343,7 +343,7 @@ fn show_quick_access(app: tauri::AppHandle) -> Result<(), VaultError> {
     let window = if let Some(window) = app.get_webview_window("quick-access") {
         window
     } else {
-        WebviewWindowBuilder::new(
+        let window = WebviewWindowBuilder::new(
             &app,
             "quick-access",
             WebviewUrl::App("index.html?window=quick".into()),
@@ -362,7 +362,15 @@ fn show_quick_access(app: tauri::AppHandle) -> Result<(), VaultError> {
                 "window_unavailable",
                 "Quick Access window could not be created.",
             )
-        })?
+        })?;
+        let popup = window.clone();
+        window.on_window_event(move |event| {
+            if matches!(event, tauri::WindowEvent::Focused(false)) {
+                let _ = popup.emit("quick-access:blur", ());
+                let _ = popup.hide();
+            }
+        });
+        window
     };
     window.show().map_err(|_| {
         error(

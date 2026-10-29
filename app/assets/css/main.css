@@ -265,8 +265,11 @@ kbd { display: inline-flex; align-items: center; justify-content: center; font-f
 .locked-vault.compact h1 { font-size: 24px; }
 .locked-vault.compact .locked-copy { max-width: 300px; font-size: 10px; }
 .locked-vault.compact .eyebrow { font-size: 7px; }
-.quick-standalone { padding: 8px; min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; }
-.quick-standalone .quick-access { width: 100%; }
+.quick-standalone { height: 100dvh; display: flex; }
+.quick-standalone .quick-access { width: 100%; height: 100%; border: 0; border-radius: 0; box-shadow: none; display: flex; flex-direction: column; }
+.quick-standalone .quick-results { flex: 1; min-height: 0; max-height: none; }
+.quick-standalone .quick-search,.quick-standalone .quick-footer { flex-shrink: 0; }
+.quick-standalone .locked-vault { overflow: auto; }
 .standalone-app { background: var(--bg); }
 .mobile-menu,.mobile-sidebar-close,.mobile-back { display: none; }
 @media (min-width: 1500px) { .sidebar { width: 250px; padding-left: 20px; padding-right: 20px; }.sidebar-status { margin-left: -20px; margin-right: -20px; }.workspace-title { padding-top: 42px; padding-bottom: 34px; }.items-pane { width: 37%; }.item-detail { padding-left: 40px; }.item-row { min-height: 74px; }.field-row { min-height: 77px; }.item-list { padding-top: 3px; } }
