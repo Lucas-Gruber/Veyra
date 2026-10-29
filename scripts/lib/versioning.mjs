@@ -99,7 +99,17 @@ export function checkProjectVersion(root, { tag } = {}) {
   return checkLoadedProject(readProject(root), tag)
 }
 
-export function setProjectVersion(root, value, { date, allowUnreleasedDowngrade = false } = {}) {
+export function nextProjectVersion(current, requested) {
+  canonicalVersion(current)
+  const increments = ['major', 'minor', 'patch', 'prerelease']
+  const version = increments.includes(requested)
+    ? semver.inc(current, requested)
+    : canonicalVersion(requested)
+  if (!version || semver.lt(version, current)) throw new Error('Refusing a version downgrade.')
+  return version
+}
+
+export function setProjectVersion(root, value, { date, allowUnreleasedDowngrade = false, dryRun = false } = {}) {
   const version = canonicalVersion(value)
   const project = readProject(root)
   validateIdentity(project)
@@ -130,6 +140,7 @@ export function setProjectVersion(root, value, { date, allowUnreleasedDowngrade 
     updates[metadataPath] = xml.replace(/(<releases\b[^>]*>)(?:\r?\n)?/, `$1\n${entry}\n`)
   }
   const identity = checkLoadedProject(readProject(root, updates))
+  if (dryRun) return identity
   // Parse and validate every source before touching disk. Temporary files are
   // staged first, so malformed input or an unwritable target leaves originals intact.
   const temporary = []

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { applicationId, canonicalVersion, checkProjectVersion, setProjectVersion } from '../../scripts/lib/versioning.mjs'
+import { applicationId, canonicalVersion, checkProjectVersion, nextProjectVersion, setProjectVersion } from '../../scripts/lib/versioning.mjs'
 
 const roots: string[] = []
 const version = '1.2.3'
@@ -54,6 +54,24 @@ describe('canonical release identity', () => {
 })
 
 describe('coordinated version changes', () => {
+  it('previews a checked version change without writing files', () => {
+    const root = fixture(), before = snapshot(root)
+    expect(setProjectVersion(root, '1.3.0-alpha.1', { dryRun: true }).version).toBe('1.3.0-alpha.1')
+    expect(snapshot(root)).toEqual(before)
+  })
+  it.each([
+    ['0.1.0-alpha.3', 'prerelease', '0.1.0-alpha.4'],
+    ['0.1.0-alpha.3', 'patch', '0.1.0'],
+    ['1.2.3', 'minor', '1.3.0'],
+    ['1.2.3', 'major', '2.0.0'],
+    ['1.2.3', '2.0.0-beta.1', '2.0.0-beta.1'],
+  ])('resolves %s with %s to %s', (current, requested, target) => {
+    expect(nextProjectVersion(current, requested)).toBe(target)
+  })
+  it('rejects downgrades and noncanonical explicit versions', () => {
+    expect(() => nextProjectVersion('1.2.3', '1.2.2')).toThrow('downgrade')
+    expect(() => nextProjectVersion('1.2.3', 'v1.2.4')).toThrow('canonical')
+  })
   it('updates all manifests together, keeps history and leaves dependency/runtime/spec versions alone', () => {
     const root = fixture()
     expect(setProjectVersion(root, '1.3.0-alpha.1', { date: '2026-10-27' })).toMatchObject({ version: '1.3.0-alpha.1', channel: 'prerelease' })

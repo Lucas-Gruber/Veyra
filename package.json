@@ -23,6 +23,7 @@
     "desktop:build": "tauri build --no-bundle",
     "postinstall": "nuxt prepare",
     "version:set": "node scripts/set-version.mjs",
+    "release:version": "node scripts/release-version.mjs",
     "version:check": "node scripts/check-release.mjs"
   },
   "dependencies": {

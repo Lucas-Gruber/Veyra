@@ -7,10 +7,20 @@
 - Patch releases fix compatible behavior; minor releases add functionality; major releases indicate incompatible changes. Before 1.0, document compatibility changes explicitly.
 
 ```sh
-pnpm version:set 0.1.0-alpha.2 --date 2026-10-28
+pnpm release:version prerelease --dry-run  # alpha.3 → alpha.4, preview only
+pnpm release:version prerelease           # apply the next candidate locally
+pnpm release:version 0.2.0-beta.1 --date 2026-10-29
 pnpm version:check
-RELEASE_TAG=v0.1.0-alpha.2 pnpm version:check
 ```
+
+`release:version` follows Noryn's central version-command convention. It accepts
+an explicit canonical version or SemVer `prerelease`, `patch`, `minor`, `major`.
+`prerelease` increments the current candidate. `patch` promotes an existing
+candidate to stable; from stable it increments the patch. Always preview first.
+`--dry-run` runs the same source/version validation without writing files.
+Commit each completed change separately; version changes get their own commit.
+This command never creates Git tags, pushes or publishes. Release gates still
+apply. The lower-level `version:set VERSION` command remains available.
 
 The setter updates `package.json`, the native Cargo manifest and local root package in Cargo.lock, Tauri configuration and the current AppStream entry together. New versions are prepended to AppStream history; existing notes remain intact. Repeating the same version is idempotent and preserves its date. Prereleases use AppStream `development`; stable versions use `stable`. Unrelated dependency versions, GNOME runtime 51 and the desktop-entry specification's `Version=1.0` are not application versions and remain unchanged.
 
