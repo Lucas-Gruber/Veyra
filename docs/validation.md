@@ -171,3 +171,12 @@ for focus, clipboard, shortcuts or general compositor compatibility. Separate
 renderer/explicit-sync workarounds and their limits are documented in
 [desktop.md](desktop.md).
 No native code or published release files changed.
+# Local desktop fixes and organization integration — 2026-10-29
+
+Local typecheck/lint and the real-server personal, authenticator and organization
+tests passed against disposable Vaultwarden 1.37.4 at the committed baseline
+digest. Organization coverage includes RSA-unwrapped keys, collection names,
+per-cipher-key credentials, failed-refresh preservation and lock clearing.
+These results do not validate the user's compositor or authorize a release.
+The changed sources are outside the unchanged-Alpha3 audit exception.
+

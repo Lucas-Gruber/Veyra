@@ -1,5 +1,27 @@
 # RSA dependency assessment — 2026-10-28
 
+## Organization support changes — 2026-10-29
+
+The personal-only assessment below describes Alpha3's old boundary. Organization
+support now imports the account private key **only when active organization keys
+exist**, using the pinned GPL SDK's key-store unwrap operation. Organization keys
+use its `initialize_org_crypto` / `UnsignedSharedKey::decapsulate` path. This makes
+the RSA OAEP sink below reachable for organization sessions. Only V1 RSA-2048
+envelope types 3 and 4 with a 256-byte ciphertext are accepted. No private keys
+or tokens cross IPC or go to disk.
+
+Every sync stages a fresh SDK key store and all metadata before replacing the
+old snapshot. A failed key import or cipher verification preserves old usable
+keys. Removed memberships disappear on successful sync; locking clears both
+private/organization keys and all organization/collection metadata.
+
+The owner's exception for unchanged Alpha3 sources **does not cover these
+changes**. The source fingerprint must fail the exception gate; no release or
+new exception is authorized here. Organization integration tests provide protocol
+evidence, not a mitigation of RUSTSEC-2023-0071 or an independent security review.
+
+## Historical personal-only review
+
 This records a source review of Veyra and the published official Bitwarden SDK
 release `rust-v4.0.0`, pinned at `b865d1db0025d9d12bea871a3a131c05aaeed205`. The
 release was re-reviewed when replacing the previous development snapshot. It is not an independent security

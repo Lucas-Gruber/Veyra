@@ -28,6 +28,7 @@ from pathlib import Path
 from argon2.low_level import Type, hash_secret_raw
 from cryptography.hazmat.primitives import hashes, padding, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric import padding as asymmetric_padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDFExpand
 
@@ -304,6 +305,47 @@ def verify_account(account: dict) -> None:
         assert decrypt(item['login']['uris'][0]['uri'], key).decode() == expected['uri']
 
 
+def create_organization_fixture(account: dict) -> dict:
+    logged_in = verified_login(account)
+    token = logged_in['access_token']
+    master = derive_master(account['password'], account['email'], account['kdf'])
+    user_key = decrypt(logged_in['Key'], stretch(master))
+    private = serialization.load_der_private_key(decrypt(logged_in['PrivateKey'], user_key), password=None)
+    org_key = secrets.token_bytes(64)
+    wrapped = '4.' + b64(private.public_key().encrypt(org_key, asymmetric_padding.OAEP(
+        mgf=asymmetric_padding.MGF1(hashes.SHA1()), algorithm=hashes.SHA1(), label=None)))
+    name, collection_name = 'Veyra fixture organization', 'Shared fixture collection'
+    _, org = request('/api/organizations', token=token, data={
+        'name': name, 'billingEmail': account['email'], 'collectionName': encrypt(collection_name, org_key),
+        'key': wrapped, 'planType': 0,
+    })
+    _, sync = request('/api/sync', token=token)
+    collection = next(c for c in sync['collections'] if c['organizationId'] == org['id'])
+    fields = {'name': 'Shared organization login', 'username': 'shared@veyra.test',
+              'password': 'Synthetic-org-' + secrets.token_urlsafe(18), 'uri': 'https://example.com/shared',
+              'totp': 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ', 'notes': 'Preserve organization notes.'}
+    data_key = secrets.token_bytes(64)
+    _, item = request('/api/ciphers/create', token=token, data={
+        'collectionIds': [collection['id']],
+        'cipher': {'type': 1, 'encryptedFor': sync['profile']['id'], 'organizationId': org['id'], 'folderId': None, 'favorite': False,
+                   'reprompt': 0, 'name': encrypt(fields['name'], data_key), 'notes': encrypt(fields['notes'], data_key),
+                   'key': encrypt(data_key, org_key), 'fields': [],
+                   'login': {'username': encrypt(fields['username'], data_key), 'password': encrypt(fields['password'], data_key),
+                             'totp': encrypt(fields['totp'], data_key), 'uris': [{'uri': encrypt(fields['uri'], data_key), 'match': None}]}},
+    })
+    _, sync = request('/api/sync', token=token)
+    model = next(o for o in sync['profile']['organizations'] if o['id'] == org['id'])
+    assert private.decrypt(base64.b64decode(model['key'].split('.', 1)[1]), asymmetric_padding.OAEP(
+        mgf=asymmetric_padding.MGF1(hashes.SHA1()), algorithm=hashes.SHA1(), label=None)) == org_key
+    assert decrypt(collection['name'], org_key).decode() == collection_name
+    stored = next(c for c in sync['ciphers'] if c['id'] == item['id'])
+    assert stored['collectionIds'] == [collection['id']]
+    assert decrypt(stored['login']['password'], decrypt(stored['key'], org_key)).decode() == fields['password']
+    account['organization'] = {'id': org['id'], 'name': name, 'collectionId': collection['id'],
+                               'collectionName': collection_name, 'item': {'cipherId': item['id'], **fields}}
+    return account
+
+
 def print_fixture_summary(manifest: dict, action: str) -> None:
     accounts = manifest['accounts']
     methods = len({account['kdf']['kdf'] for account in accounts})
@@ -357,9 +399,11 @@ def main() -> None:
     enable_authenticator(authenticator)
     verify_account(authenticator)
     accounts.append(authenticator)
+    organization_account = create_organization_fixture(create_account('Organization', {
+        'kdf': 0, 'kdfIterations': 600000, 'kdfMemory': None, 'kdfParallelism': None}, run))
     _, config = request('/api/config')
     version = config.get('version', 'unknown') if isinstance(config, dict) else 'unknown'
-    manifest = {'schemaVersion': 1, 'serverUrl': SERVER, 'vaultwardenVersion': args.server_version, 'serverCompatibilityVersion': version, 'accounts': accounts}
+    manifest = {'schemaVersion': 1, 'serverUrl': SERVER, 'vaultwardenVersion': args.server_version, 'serverCompatibilityVersion': version, 'accounts': accounts, 'organizationAccount': organization_account}
     fd = os.open(OUTPUT, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
     os.fchmod(fd, 0o600)
     with os.fdopen(fd, 'w') as handle:

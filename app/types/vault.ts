@@ -16,6 +16,8 @@ export interface VaultItem {
   hasPassword?: boolean
   hasTotp?: boolean
   readOnly?: boolean
+  organizationId?: string | null
+  collectionIds?: string[]
 }
 export type CopyField = 'username' | 'password' | 'totp'
 export interface SessionStatus {
@@ -24,7 +26,9 @@ export interface SessionStatus {
   generation: number
   lastSync: string | null
 }
-export interface VaultSnapshot { session: SessionStatus; items: VaultItem[]; unsupportedItems: number }
+export interface VaultOrganization { id: string; name: string }
+export interface VaultCollection { id: string; organizationId: string; name: string; readOnly: boolean; hidePasswords: boolean }
+export interface VaultSnapshot { session: SessionStatus; items: VaultItem[]; unsupportedItems: number; organizations: VaultOrganization[]; collections: VaultCollection[] }
 export type TwoFactorProvider = 'totp' | 'email'
 export interface LoginRequest {
   serverUrl: string

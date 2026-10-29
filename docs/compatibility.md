@@ -4,7 +4,7 @@ Veyra implements a tested subset of the Bitwarden-compatible password-vault API.
 
 ## Supported boundary
 
-The initial reference server is Vaultwarden **1.37.4**, pinned to its official image digest. The connection uses personal-vault read-only synchronization, bounded PBKDF2/Argon2id parameters and official Bitwarden cryptographic components pinned to a specific source commit. Organization keys, newer item/encryption types, authentication methods and account migrations outside this subset must be reported explicitly. No real data may silently be replaced with demonstration data.
+The initial reference server is Vaultwarden **1.37.4**, pinned to its official image digest. The connection uses bounded PBKDF2/Argon2id parameters and official Bitwarden GPL components from published `rust-v4.0.0`, pinned to its exact commit. V1 personal and organization vaults support login, note, card and identity metadata, shared credentials and collection names. The vault switcher filters all vaults, personal items or an organization; Collections filters accessible collection IDs. Organization permissions come from server sync. Newer item/encryption types, authentication methods and account migrations remain explicitly unsupported. No real data may silently be replaced with demonstration data.
 
 The API may add response fields; parsers can ignore unrelated fields while requiring the fields needed to authenticate/decrypt. Unknown KDFs, excessive work parameters, unsupported cryptographic states, failed integrity checks and malformed required data fail with safe errors. Veyra must never compensate by lowering KDF settings or disabling TLS or integrity verification. A failed refresh preserves the prior complete snapshot; it does not report a successful sync.
 

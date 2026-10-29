@@ -6,12 +6,12 @@ use bitwarden_api_api::models::{
     CipherType as ApiCipherType, PrivateKeysResponseModel, SyncResponseModel,
 };
 use bitwarden_core::{
-    key_management::{
-        MasterPasswordAuthenticationData, PrivateKeySlotId, SigningKeySlotId, SymmetricKeySlotId,
-    },
-    Client, ClientSettings, DeviceType,
+    key_management::{MasterPasswordAuthenticationData, PrivateKeySlotId, SymmetricKeySlotId},
+    Client, OrganizationId,
 };
-use bitwarden_crypto::{Decryptable, EncString, Kdf, MasterKey, SymmetricCryptoKey};
+use bitwarden_crypto::{
+    Decryptable, EncString, Kdf, MasterKey, SymmetricCryptoKey, UnsignedSharedKey,
+};
 use bitwarden_vault::{Cipher, CipherRepromptType, CipherType, CipherView, VaultClientExt};
 use reqwest::{Client as HttpClient, Response};
 use serde::{Deserialize, Serialize};
@@ -81,6 +81,70 @@ pub struct ItemMetadata {
     pub has_password: bool,
     pub has_totp: bool,
     pub read_only: bool,
+    pub organization_id: Option<String>,
+    pub collection_ids: Vec<String>,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrganizationMetadata {
+    pub id: String,
+    pub name: String,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CollectionMetadata {
+    pub id: String,
+    pub organization_id: String,
+    pub name: String,
+    pub read_only: bool,
+    pub hide_passwords: bool,
+}
+
+// Build a fresh SDK key store for every sync. A failed organization-key import
+// or cipher MAC verification must not invalidate the previous complete snapshot.
+async fn crypto_client(
+    user_key: &SymmetricCryptoKey,
+    private_key: Option<&EncString>,
+    organizations: Vec<(OrganizationId, UnsignedSharedKey)>,
+) -> Result<Client, VaultError> {
+    let client = Client::new(None);
+    client
+        .flags()
+        .load(HashMap::from([(
+            "pm-34500-strict-cipher-decryption".into(),
+            true,
+        )]))
+        .await;
+    if !client.flags().get().await.strict_cipher_decryption {
+        return Err(decryption_error());
+    }
+    {
+        let mut context = client.internal.get_key_store().context_mut();
+        let local = context.add_local_symmetric_key(user_key.clone());
+        context
+            .persist_symmetric_key(local, SymmetricKeySlotId::User)
+            .map_err(|_| decryption_error())?;
+        if !organizations.is_empty() {
+            let private = context
+                .unwrap_private_key(
+                    SymmetricKeySlotId::User,
+                    private_key.ok_or_else(decryption_error)?,
+                )
+                .map_err(|_| decryption_error())?;
+            context
+                .persist_private_key(private, PrivateKeySlotId::UserPrivateKey)
+                .map_err(|_| decryption_error())?;
+        }
+    }
+    if !organizations.is_empty() {
+        client
+            .internal
+            .initialize_org_crypto(organizations)
+            .map_err(|_| decryption_error())?;
+    }
+    Ok(client)
 }
 
 #[derive(Deserialize)]
@@ -227,7 +291,11 @@ pub struct Vaultwarden {
     expires_at: std::time::Instant,
     encrypted: Vec<Cipher>,
     items: Vec<ItemMetadata>,
-    /// Organization and newer unsupported item types are outside this read-only milestone.
+    user_key: Option<SymmetricCryptoKey>,
+    private_key: EncString,
+    pub organizations: Vec<OrganizationMetadata>,
+    pub collections: Vec<CollectionMetadata>,
+    /// Newer unsupported item types are counted explicitly.
     pub skipped_items: usize,
 }
 
@@ -395,68 +463,20 @@ impl Vaultwarden {
                 "This account uses an encryption format outside Veyra's tested compatibility boundary.",
             ));
         }
-        let client = Client::new(Some(ClientSettings {
-            identity_url: server
-                .join("identity")
-                .map_err(|_| invalid_response())?
-                .to_string(),
-            api_url: server
-                .join("api")
-                .map_err(|_| invalid_response())?
-                .to_string(),
-            user_agent: concat!("Veyra/", env!("CARGO_PKG_VERSION")).into(),
-            device_type: DeviceType::LinuxDesktop,
-            ..Default::default()
-        }));
-        // No SDK authentication/network operation is used: its default handler has no
-        // tokens. All network traffic goes through the bounded transport above/below.
-        client
-            .flags()
-            .load(HashMap::from([(
-                "pm-34500-strict-cipher-decryption".into(),
-                true,
-            )]))
-            .await;
-        // The upstream setter logs and swallows state errors. Verify the value
-        // rather than ever falling back to its lenient decryption default.
-        if !client.flags().get().await.strict_cipher_decryption {
-            return Err(VaultError::new(
-                "crypto_unavailable",
-                "Strict vault verification could not be initialized. Sign-in was cancelled.",
-            ));
-        }
-        let crypto_client = client.clone();
-        tokio::task::spawn_blocking(move || {
-            // Use the official SDK derivation/unwrapping primitives directly so
-            // the master password stays in a zeroizing buffer rather than being
-            // copied into the SDK's ordinary String request model.
+        let user_key = tokio::task::spawn_blocking(move || {
             let master_key =
                 MasterKey::derive(&password, &email, &kdf).map_err(|_| decryption_error())?;
             let user_key = master_key
                 .decrypt_user_key(wrapped_key)
                 .map_err(|_| decryption_error())?;
-            // This personal-vault boundary has no organization/sharing operation.
-            // The encrypted privateKey envelope was parsed above for the account
-            // format check; do not decrypt its contents or import/retain the unused
-            // RSA private key. Initialize only the AES key with official SDK APIs,
-            // preserving the V1 initializer's key-type and fresh-store requirements.
             if !matches!(user_key, SymmetricCryptoKey::Aes256CbcHmacKey(_)) {
                 return Err(decryption_error());
             }
-            let mut context = crypto_client.internal.get_key_store().context_mut();
-            if context.has_symmetric_key(SymmetricKeySlotId::User)
-                || context.has_private_key(PrivateKeySlotId::UserPrivateKey)
-                || context.has_signing_key(SigningKeySlotId::UserSigningKey)
-            {
-                return Err(decryption_error());
-            }
-            let local_key = context.add_local_symmetric_key(user_key);
-            context
-                .persist_symmetric_key(local_key, SymmetricKeySlotId::User)
-                .map_err(|_| decryption_error())
+            Ok(user_key)
         })
         .await
         .map_err(|_| decryption_error())??;
+        let client = crypto_client(&user_key, None, vec![]).await?;
         let mut vault = Self {
             client,
             http,
@@ -466,6 +486,10 @@ impl Vaultwarden {
             encrypted: vec![],
             items: vec![],
             skipped_items: 0,
+            user_key: Some(user_key),
+            private_key,
+            organizations: vec![],
+            collections: vec![],
         };
         vault.sync().await?;
         Ok(vault)
@@ -517,13 +541,76 @@ impl Vaultwarden {
                 "This vault exceeds the supported item limit.",
             ));
         }
+        let profile = sync.profile.ok_or_else(invalid_response)?;
+        let orgs = profile.organizations.unwrap_or_default();
+        if orgs.len() > 1000 {
+            return Err(invalid_response());
+        }
+        let mut organizations = vec![];
+        let mut org_keys = vec![];
+        for org in orgs {
+            if org.enabled == Some(false) || org.key.is_none() {
+                continue;
+            }
+            let id = org.id.ok_or_else(invalid_response)?;
+            let key: UnsignedSharedKey = org
+                .key
+                .as_deref()
+                .ok_or_else(invalid_response)?
+                .parse()
+                .map_err(|_| decryption_error())?;
+            // Only the published SDK's V1 RSA-2048 organization envelope types.
+            match &key {
+                UnsignedSharedKey::Rsa2048_OaepSha256_B64 { data }
+                | UnsignedSharedKey::Rsa2048_OaepSha1_B64 { data }
+                    if data.len() == 256 => {}
+                _ => return Err(decryption_error()),
+            }
+            organizations.push(OrganizationMetadata {
+                id: id.to_string(),
+                name: org.name.ok_or_else(invalid_response)?,
+            });
+            org_keys.push((id.to_string().parse().map_err(|_| invalid_response())?, key));
+        }
+        let next_client = crypto_client(
+            self.user_key.as_ref().ok_or_else(decryption_error)?,
+            Some(&self.private_key),
+            org_keys,
+        )
+        .await?;
+        let mut collections = vec![];
+        for collection in sync.collections.unwrap_or_default() {
+            let id = collection.id.ok_or_else(invalid_response)?;
+            let organization_id = collection.organization_id.ok_or_else(invalid_response)?;
+            let name =
+                EncString::parse_strict(collection.name.as_deref().ok_or_else(invalid_response)?)
+                    .map_err(|_| decryption_error())?;
+            let name: String = name
+                .decrypt(
+                    &mut next_client.internal.get_key_store().context(),
+                    SymmetricKeySlotId::Organization(
+                        organization_id
+                            .to_string()
+                            .parse()
+                            .map_err(|_| invalid_response())?,
+                    ),
+                )
+                .map_err(|_| decryption_error())?;
+            collections.push(CollectionMetadata {
+                id: id.to_string(),
+                organization_id: organization_id.to_string(),
+                name,
+                read_only: collection.read_only.unwrap_or(true),
+                hide_passwords: collection.hide_passwords.unwrap_or(true),
+            });
+        }
         let mut folder_names = HashMap::new();
         for folder in sync.folders.unwrap_or_default() {
             let id = folder.id.ok_or_else(invalid_response)?;
             let name =
                 EncString::parse_strict(folder.name.as_deref().ok_or_else(invalid_response)?)
                     .map_err(|_| decryption_error())?;
-            let mut context = self.client.internal.get_key_store().context();
+            let mut context = next_client.internal.get_key_store().context();
             let name: String = name
                 .decrypt(&mut context, SymmetricKeySlotId::User)
                 .map_err(|_| decryption_error())?;
@@ -533,20 +620,17 @@ impl Vaultwarden {
         let mut next_items = Vec::with_capacity(ciphers.len());
         let mut skipped_items = 0;
         for model in ciphers {
-            // Unknown future item types and organization items are deliberately
-            // excluded before SDK conversion; their count is visible to the UI.
-            if model.organization_id.is_some()
-                || matches!(
-                    model.r#type,
-                    Some(
-                        ApiCipherType::SSHKey
-                            | ApiCipherType::BankAccount
-                            | ApiCipherType::DriversLicense
-                            | ApiCipherType::Passport
-                            | ApiCipherType::__Unknown(_)
-                    )
+            // Unknown future item types remain explicit compatibility exclusions.
+            if matches!(
+                model.r#type,
+                Some(
+                    ApiCipherType::SSHKey
+                        | ApiCipherType::BankAccount
+                        | ApiCipherType::DriversLicense
+                        | ApiCipherType::Passport
+                        | ApiCipherType::__Unknown(_)
                 )
-            {
+            ) {
                 skipped_items += 1;
                 continue;
             }
@@ -564,8 +648,7 @@ impl Vaultwarden {
                     continue;
                 }
             };
-            let mut view = self
-                .client
+            let mut view = next_client
                 .vault()
                 .ciphers()
                 .decrypt(cipher.clone())
@@ -574,6 +657,18 @@ impl Vaultwarden {
             let result = project_metadata(&view, kind);
             erase_transient_secrets(&mut view);
             let mut metadata = result?;
+            if let Some(org_id) = metadata.organization_id.as_ref() {
+                metadata.folder = organizations
+                    .iter()
+                    .find(|org| &org.id == org_id)
+                    .map(|org| org.name.clone())
+                    .ok_or_else(invalid_response)?;
+            }
+            metadata.tags = collections
+                .iter()
+                .filter(|collection| metadata.collection_ids.contains(&collection.id))
+                .map(|collection| collection.name.clone())
+                .collect();
             if let Some(id) = cipher.folder_id {
                 metadata.folder = folder_names
                     .get(&id.into())
@@ -584,7 +679,10 @@ impl Vaultwarden {
             next_encrypted.push(cipher);
         }
         self.require_active()?;
-        // Commit only after the complete supported personal vault has parsed/decrypted.
+        // Commit all keys and metadata only after the entire supported vault verified.
+        self.client = next_client;
+        self.organizations = organizations;
+        self.collections = collections;
         self.encrypted = next_encrypted;
         self.items = next_items;
         self.skipped_items = skipped_items;
@@ -648,6 +746,9 @@ impl Vaultwarden {
         self.access_token.zeroize();
         self.items.clear();
         self.encrypted.clear();
+        self.organizations.clear();
+        self.collections.clear();
+        self.user_key.take();
     }
 }
 
@@ -700,6 +801,12 @@ fn project_metadata(view: &CipherView, kind: &'static str) -> Result<ItemMetadat
         has_password: permitted && login.is_some_and(|v| v.password.is_some()),
         has_totp: permitted && login.is_some_and(|v| v.totp.is_some()),
         read_only: true,
+        organization_id: view.organization_id.map(|id| id.to_string()),
+        collection_ids: view
+            .collection_ids
+            .iter()
+            .map(ToString::to_string)
+            .collect(),
     })
 }
 
@@ -807,6 +914,7 @@ fn erase_transient_secrets(view: &mut CipherView) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bitwarden_core::key_management::SigningKeySlotId;
 
     #[test]
     fn kdf_bounds_reject_negative_zero_unknown_and_excessive_work() {
@@ -923,6 +1031,88 @@ mod tests {
         assert!(
             matches!(bounded_body(chunked, 8).await, Err(error) if error.code == "response_too_large")
         );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires dedicated local organization fixtures; set VEYRA_TEST_FIXTURE_FILE"]
+    async fn actual_vaultwarden_organization_keys_collections_and_transactional_sync() {
+        let fixture: Value = serde_json::from_slice(
+            &std::fs::read(std::env::var("VEYRA_TEST_FIXTURE_FILE").unwrap()).unwrap(),
+        )
+        .unwrap();
+        let account = &fixture["organizationAccount"];
+        let mut vault = Vaultwarden::connect_inner(
+            fixture["serverUrl"].as_str().unwrap().into(),
+            account["email"].as_str().unwrap().into(),
+            Zeroizing::new(account["password"].as_str().unwrap().into()),
+            None,
+            true,
+        )
+        .await
+        .unwrap();
+        let org = &account["organization"];
+        let expected = &org["item"];
+        assert!(vault.organizations.iter().any(
+            |o| o.id == org["id"].as_str().unwrap() && o.name == org["name"].as_str().unwrap()
+        ));
+        assert!(vault
+            .collections
+            .iter()
+            .any(|c| c.id == org["collectionId"].as_str().unwrap()
+                && c.name == org["collectionName"].as_str().unwrap()));
+        let id = expected["cipherId"].as_str().unwrap();
+        let metadata = vault.items.iter().find(|item| item.id == id).unwrap();
+        assert!(metadata.organization_id.as_deref() == org["id"].as_str());
+        assert!(metadata
+            .collection_ids
+            .iter()
+            .any(|id| Some(id.as_str()) == org["collectionId"].as_str()));
+        assert!(
+            *vault.field(id, Field::Password).await.unwrap()
+                == expected["password"].as_str().unwrap(),
+            "shared password must decrypt through the organization and per-cipher keys"
+        );
+        let previous = serde_json::to_value(vault.metadata()).unwrap();
+        let original_server = vault.server.clone();
+        let response = vault
+            .http
+            .get(vault.server.join("api/sync").unwrap())
+            .bearer_auth(&*vault.access_token)
+            .send()
+            .await
+            .unwrap();
+        let mut sync: Value =
+            serde_json::from_slice(&bounded_body(response, MAX_SYNC_BYTES).await.unwrap()).unwrap();
+        sync["profile"]["organizations"][0]["key"] = Value::String("4.AA==".into());
+        let body = serde_json::to_vec(&sync).unwrap();
+        let mut wire = format!(
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            body.len()
+        )
+        .into_bytes();
+        wire.extend_from_slice(&body);
+        vault.server = single_response_server(wire);
+        assert!(vault.sync().await.is_err());
+        assert!(previous == serde_json::to_value(vault.metadata()).unwrap());
+        assert!(
+            *vault.field(id, Field::Password).await.unwrap()
+                == expected["password"].as_str().unwrap(),
+            "failed org-key refresh must preserve the old usable keys"
+        );
+        vault.server = original_server;
+        vault.sync().await.unwrap();
+        vault.lock();
+        assert!(
+            vault.organizations.is_empty()
+                && vault.collections.is_empty()
+                && vault.user_key.is_none()
+        );
+        assert!(!vault
+            .client
+            .internal
+            .get_key_store()
+            .context()
+            .has_private_key(PrivateKeySlotId::UserPrivateKey));
     }
 
     #[tokio::test]

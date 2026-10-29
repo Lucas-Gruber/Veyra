@@ -93,3 +93,10 @@ A zero-test or skipped-test run is not evidence of
 real server compatibility. The fixture helper supports no production server
 URL, stores no real user credentials and cannot validate KDE/GNOME/Wayland or
 Flatpak behavior.
+
+The helper also creates a separate organization account, a real organization,
+an encrypted collection and a shared login with a wrapped per-cipher key. The
+organization test checks key/collection/credential decryption, transactional
+failure recovery and clearing keys on lock. It runs with the same
+`actual_vaultwarden_` filter. RSA private-key decryption is now reachable in this
+flow; see `docs/rsa-assessment.md` for the release gate implications.

@@ -112,6 +112,8 @@ async fn login_vault(
         Ok(vault) => {
             let expires_in = vault.expires_in();
             state.metadata = vault.metadata();
+            state.organizations = vault.organizations.clone();
+            state.collections = vault.collections.clone();
             state.unsupported_items = vault.skipped_items;
             state.vault = Some(Arc::new(AsyncMutex::new(vault)));
             state.status.locked = false;
@@ -202,7 +204,7 @@ async fn sync_vault(app: tauri::AppHandle) -> Result<MetadataSnapshot, VaultErro
         result = async {
             let mut vault = vault.lock().await;
             vault.sync().await?;
-            Ok::<_, VaultError>((vault.metadata(), vault.skipped_items))
+            Ok::<_, VaultError>((vault.metadata(), vault.skipped_items, vault.organizations.clone(), vault.collections.clone()))
         } => result,
     };
     let session = app.state::<Session>();
@@ -210,8 +212,10 @@ async fn sync_vault(app: tauri::AppHandle) -> Result<MetadataSnapshot, VaultErro
     state.require_generation(generation)?;
     state.status.require_unlocked()?;
     match result {
-        Ok((items, unsupported)) => {
+        Ok((items, unsupported, organizations, collections)) => {
             state.metadata = items;
+            state.organizations = organizations;
+            state.collections = collections;
             state.unsupported_items = unsupported;
             state.status.last_sync = Some(chrono::Utc::now().to_rfc3339());
             let snapshot = state.snapshot();

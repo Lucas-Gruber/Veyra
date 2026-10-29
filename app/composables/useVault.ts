@@ -1,6 +1,6 @@
 import { isTauri } from '@tauri-apps/api/core'
 import { demoItems } from '~/data/demo'
-import type { CopyField, LoginOutcome, LoginRequest, SessionStatus, VaultSnapshot, VaultItem } from '~/types/vault'
+import type { CopyField, LoginOutcome, LoginRequest, SessionStatus, VaultSnapshot, VaultItem, VaultOrganization, VaultCollection } from '~/types/vault'
 
 export function useVault() {
   const session = useState<SessionStatus>('vault:session', () => ({ locked: true, mode: 'disconnected', generation: 0, lastSync: null }))
@@ -8,6 +8,8 @@ export function useVault() {
   const demo = computed(() => session.value.mode === 'demo')
   const connected = computed(() => session.value.mode === 'connected' && !session.value.locked)
   const items = useState<VaultItem[]>('vault:items', () => [])
+  const organizations = useState<VaultOrganization[]>('vault:organizations', () => [])
+  const collections = useState<VaultCollection[]>('vault:collections', () => [])
   const recent = useState<string[]>('vault:recent', () => [])
   const feedback = useState('vault:feedback', () => '')
   const syncing = useState('vault:syncing', () => false)
@@ -35,6 +37,8 @@ export function useVault() {
     session.value = status
     if (status.locked || !wasSameSession) {
       items.value = []
+      organizations.value = []
+      collections.value = []
       recent.value = []
       unsupportedItems.value = 0
     }
@@ -45,6 +49,8 @@ export function useVault() {
     if (!applySession(snapshot.session) || snapshot.session.locked) return
     // Only bounded display metadata crosses IPC; no passwords, notes or TOTP seeds.
     items.value = snapshot.items
+    organizations.value = snapshot.organizations || []
+    collections.value = snapshot.collections || []
     unsupportedItems.value = snapshot.unsupportedItems || 0
   }
   async function refreshMetadata() {
@@ -90,6 +96,8 @@ export function useVault() {
   async function lock() {
     sessionEpoch.value++
     items.value = []
+    organizations.value = []
+    collections.value = []
     recent.value = []
     unsupportedItems.value = 0
     session.value = { ...session.value, locked: true, mode: 'disconnected', lastSync: null }
@@ -162,5 +170,5 @@ export function useVault() {
     return false
   }
   async function hideQuickAccess() { if (desktop.value) await invoke('hide_quick_access') }
-  return { session, locked, demo, connected, items, recent, feedback, syncing, unsupportedItems, desktop, applySession, sessionChanged, initialize, login, unlock, lock, sync, copy, reveal, toggleFavorite, openWebsite, notify, showQuickAccess, hideQuickAccess, errorMessage }
+  return { session, locked, demo, connected, items, organizations, collections, recent, feedback, syncing, unsupportedItems, desktop, applySession, sessionChanged, initialize, login, unlock, lock, sync, copy, reveal, toggleFavorite, openWebsite, notify, showQuickAccess, hideQuickAccess, errorMessage }
 }

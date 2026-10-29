@@ -1,6 +1,8 @@
 //! In-memory session authority. Lock invalidates every outstanding operation.
 
-use crate::vaultwarden::{ItemMetadata, VaultError, Vaultwarden};
+use crate::vaultwarden::{
+    CollectionMetadata, ItemMetadata, OrganizationMetadata, VaultError, Vaultwarden,
+};
 use serde::Serialize;
 use std::sync::{Arc, Mutex};
 use tokio::sync::Mutex as AsyncMutex;
@@ -40,6 +42,8 @@ pub struct SessionInner {
     pub vault: Option<ConnectedVault>,
     pub metadata: Vec<ItemMetadata>,
     pub unsupported_items: usize,
+    pub organizations: Vec<OrganizationMetadata>,
+    pub collections: Vec<CollectionMetadata>,
     pub cancellation: CancellationToken,
 }
 
@@ -54,6 +58,8 @@ impl SessionInner {
         self.status.mode = "disconnected";
         self.status.last_sync = None;
         self.metadata.clear();
+        self.organizations.clear();
+        self.collections.clear();
         self.unsupported_items = 0;
         self.vault.take()
     }
@@ -84,6 +90,8 @@ impl Default for Session {
             vault: None,
             metadata: vec![],
             unsupported_items: 0,
+            organizations: vec![],
+            collections: vec![],
             cancellation: CancellationToken::new(),
         }))
     }
@@ -95,12 +103,24 @@ pub struct MetadataSnapshot {
     pub session: SessionStatus,
     pub items: Vec<ItemMetadata>,
     pub unsupported_items: usize,
+    pub organizations: Vec<OrganizationMetadata>,
+    pub collections: Vec<CollectionMetadata>,
 }
 
 impl SessionInner {
     pub fn snapshot(&self) -> MetadataSnapshot {
         MetadataSnapshot {
             session: self.status.clone(),
+            organizations: if self.status.locked {
+                vec![]
+            } else {
+                self.organizations.clone()
+            },
+            collections: if self.status.locked {
+                vec![]
+            } else {
+                self.collections.clone()
+            },
             items: if self.status.locked {
                 vec![]
             } else {
@@ -165,6 +185,8 @@ mod tests {
             has_password: true,
             has_totp: false,
             read_only: true,
+            organization_id: None,
+            collection_ids: vec![],
         }
     }
 
@@ -174,8 +196,21 @@ mod tests {
         let mut state = session.0.lock().unwrap();
         state.metadata.push(metadata());
         state.unsupported_items = 9;
+        state.organizations.push(OrganizationMetadata {
+            id: "org-fixture".into(),
+            name: "Synthetic organization".into(),
+        });
+        state.collections.push(CollectionMetadata {
+            id: "collection-fixture".into(),
+            organization_id: "org-fixture".into(),
+            name: "Synthetic collection".into(),
+            read_only: true,
+            hide_passwords: true,
+        });
         let snapshot = state.snapshot();
         assert!(snapshot.items.is_empty());
+        assert!(snapshot.organizations.is_empty());
+        assert!(snapshot.collections.is_empty());
         assert_eq!(snapshot.unsupported_items, 0);
         assert!(snapshot.session.locked);
     }

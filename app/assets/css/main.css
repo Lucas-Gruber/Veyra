@@ -327,3 +327,15 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .nav-item > span:not(.nav-count) { overflow-wrap: anywhere; min-width: 0; }
 .quick-footer { gap: 12px; flex-wrap: wrap; }
 .quick-domain { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+.vault-switcher { position: relative; margin: 30px 0 23px; }
+.vault-switcher .account-switcher { margin: 0; }
+.account-label { min-width: 0; flex: 1; }
+.account-label strong { overflow-wrap: anywhere; }
+.vault-menu { position: absolute; top: calc(100% + 6px); left: 0; width: 100%; max-height: 300px; overflow: auto; padding: 6px; background: var(--panel); border: 1px solid var(--border-strong); border-radius: 9px; box-shadow: 0 12px 35px #0005; z-index: 45; }
+.vault-menu button { display: flex; align-items: center; gap: 9px; padding: 10px; width: 100%; color: var(--text); background: transparent; text-align: left; border-radius: 5px; font-size: .875rem; }
+.vault-menu button:hover,.vault-menu button:focus { background: var(--surface-hover); }
+.vault-menu button span { flex: 1; overflow-wrap: anywhere; min-width: 0; }
+.collection-filters { display: flex; gap: 8px; padding: 0 32px 14px; flex-wrap: wrap; }
+.collection-filters button { background: var(--surface); border: 1px solid var(--border-strong); color: var(--muted); padding: 7px 10px; border-radius: 6px; font-size: .8125rem; }
+.collection-filters button[aria-pressed=true] { background: var(--accent-bg); color: var(--accent); }
