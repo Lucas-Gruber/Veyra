@@ -103,6 +103,21 @@ container/data retained.
 
 The new release pin still resolves `rsa` 0.10.0-rc.19. A fresh raw `cargo audit`
 returned exit 1 with exactly RUSTSEC-2023-0071 and the previous five warnings.
-No audit suppression or publication-policy exception has been applied. Installed
-Flatpak and source-archive verification for Alpha3 are separate release checks;
-prior alpha results do not substitute for them.
+No audit suppression or publication-policy exception has been applied.
+
+The exact Alpha3 tag commit `d7506000f7b5b66ef8958339949079811e20ca0d`
+then passed all 70 tests, the optimized Linux build and the installed Flatpak
+smoke in [GitHub run 40732003146](https://github.com/Lucas-Gruber/Veyra/actions/runs/40732003146).
+The smoke exercised native Quick Access, search, copying and explicit-lock
+clipboard clearing. The sole failed job was the dependency security audit;
+publication was therefore skipped. The downloaded artifact ZIP matched GitHub's
+SHA-256 digest, and its Flatpak matched the included `SHA256SUMS`:
+`7f3b8858860610b4620c0c52b343baf09348af12c8dd409bb2706abe49b69dc3`.
+
+The committed source-archive helper also completed locally for that exact
+commit. Its 696-package Rust vendor graph resolved offline after extraction.
+The relocated isolated pnpm content store restored the frontend with a frozen
+lockfile and all 1,025 supply-chain policy checks; registry metadata still
+requires network access as documented in [source-build.md](source-build.md).
+Third-party license files and notices were verified in the archive. This
+packaging evidence does not resolve the failed audit or authorize publication.

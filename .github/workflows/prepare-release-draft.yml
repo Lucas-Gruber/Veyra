@@ -1,0 +1,171 @@
+name: Prepare existing release draft
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing prerelease tag (for example v0.1.0-alpha.3)
+        required: true
+        type: string
+      run_id:
+        description: Completed tagged Build and release Veyra run
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: release-refs/tags/${{ inputs.tag }}
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      actions: read
+    env:
+      RELEASE_TAG: ${{ inputs.tag }}
+      SOURCE_RUN_ID: ${{ inputs.run_id }}
+    steps:
+      - name: Validate dispatch inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*$ ]]
+          [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.tag }}
+          persist-credentials: false
+      - name: Verify source run and existing unpublished draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir release-artifacts
+          python3 <<'PY'
+          import hashlib, json, os, pathlib, re, subprocess, zipfile
+
+          def gh(*args):
+              return subprocess.check_output(['gh', *args])
+
+          def pages(endpoint):
+              data = gh('api', '--paginate', endpoint).decode()
+              decoder = json.JSONDecoder()
+              while data.strip():
+                  value, end = decoder.raw_decode(data.lstrip())
+                  yield value
+                  data = data.lstrip()[end:]
+
+          repo, tag, run_id = (os.environ[key] for key in ('GITHUB_REPOSITORY', 'RELEASE_TAG', 'SOURCE_RUN_ID'))
+          root = pathlib.Path('release-artifacts')
+          version = json.loads(pathlib.Path('package.json').read_text())['version']
+          assert tag == 'v' + version, 'Tag and application version differ'
+          commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          run = json.loads(gh('api', f'repos/{repo}/actions/runs/{run_id}'))
+          assert run['head_sha'] == commit and run['head_branch'] == tag, 'Run is not for this tagged source'
+          assert run['event'] == 'push' and run['path'] == '.github/workflows/release.yml', 'Wrong source workflow'
+          assert run['status'] == 'completed' and run['conclusion'] in ('success', 'failure'), 'Incomplete source run'
+          jobs = [job for page in pages(f'repos/{repo}/actions/runs/{run_id}/jobs?per_page=100') for job in page['jobs']]
+          by_name = {job['name']: job for job in jobs}
+          assert len(by_name) == len(jobs), 'Duplicate jobs need review'
+          required = {'validate / linux', 'validate / flatpak', 'validate / vaultwarden / versions'}
+          assert required <= by_name.keys(), 'Missing build, packaging or compatibility job'
+          real = {name for name in by_name if re.fullmatch(r'validate / vaultwarden / Real vault tests \((?:baseline|latest)-[0-9]+\.[0-9]+\.[0-9]+\)', name)}
+          assert real and any('(baseline-' in name for name in real), 'Missing real baseline Vaultwarden tests'
+          expected = required | real | {'validate / security', 'publish'}
+          assert by_name.keys() == expected, 'Missing or unexpected validation jobs'
+          for name in required | real:
+              assert by_name[name]['status'] == 'completed' and by_name[name]['conclusion'] == 'success', f'Failed validation: {name}'
+          security = by_name['validate / security']
+          assert security['status'] == 'completed' and security['conclusion'] in ('success', 'failure'), 'Incomplete security audit'
+          if security['conclusion'] == 'failure':
+              audit_steps = {step['name']: step['conclusion'] for step in security['steps']}
+              assert audit_steps.get('Audit frontend dependencies') == 'success', 'Frontend audit did not pass'
+              assert audit_steps.get('Audit Rust dependencies') == 'failure', 'Unexpected security failure'
+          assert by_name['publish']['status'] == 'completed' and by_name['publish']['conclusion'] == 'skipped', 'Publisher state needs review'
+          draft = json.loads(gh('release', 'view', tag, '--json', 'apiUrl,isDraft,isPrerelease,tagName,assets'))
+          assert draft['tagName'] == tag and draft['isDraft'] and draft['isPrerelease'], 'An existing unpublished prerelease draft is required'
+          assert not draft['assets'], 'Existing draft assets need review; nothing will be overwritten'
+          artifacts = [a for page in pages(f'repos/{repo}/actions/runs/{run_id}/artifacts?per_page=100') for a in page['artifacts'] if a['name'] == 'veyra-linux-flatpak']
+          assert len(artifacts) == 1 and not artifacts[0]['expired'], 'Missing or ambiguous Flatpak artifact'
+          artifact = artifacts[0]
+          assert artifact['workflow_run']['head_sha'] == commit, 'Artifact source differs'
+          assert 0 < artifact['size_in_bytes'] <= 512 * 1024 * 1024, 'Unexpected artifact archive size'
+          digest = artifact.get('digest', '')
+          assert re.fullmatch(r'sha256:[0-9a-f]{64}', digest), 'Artifact has no SHA256 attestation'
+          archive = gh('api', f"repos/{repo}/actions/artifacts/{artifact['id']}/zip")
+          assert 'sha256:' + hashlib.sha256(archive).hexdigest() == digest, 'Artifact archive digest mismatch'
+          archive_path = pathlib.Path(os.environ['RUNNER_TEMP']) / 'veyra-verified-artifact.zip'
+          archive_path.write_bytes(archive)
+          filename = f'Veyra-{version}-linux-x86_64.flatpak'
+          with zipfile.ZipFile(archive_path) as bundle:
+              assert set(bundle.namelist()) == {filename, 'SHA256SUMS'} and len(bundle.infolist()) == 2, 'Unexpected artifact contents'
+              assert all(0 < item.file_size <= 512 * 1024 * 1024 for item in bundle.infolist()), 'Unexpected artifact size'
+              checksums = bundle.read('SHA256SUMS').decode('ascii')
+              match = re.fullmatch(r'([0-9a-f]{64})  (?:\./)?' + re.escape(filename) + r'\n?', checksums)
+              assert match, 'Unexpected Flatpak checksum manifest'
+              flatpak = bundle.read(filename)
+              assert hashlib.sha256(flatpak).hexdigest() == match[1], 'Flatpak checksum mismatch'
+              (root / filename).write_bytes(flatpak)
+          (root / f'Veyra-{version}-cargo-audit.log').write_bytes(gh('api', f"repos/{repo}/actions/jobs/{security['id']}/logs"))
+          (root / f'Veyra-{version}-validation.json').write_text(json.dumps({
+              'source_commit': commit, 'tag': tag, 'source_run': run['html_url'],
+              'draft_api_url': draft['apiUrl'],
+              'security_conclusion': security['conclusion'], 'publication_authorized': False,
+              'artifact_id': artifact['id'], 'artifact_digest': digest,
+              'jobs': {name: job['conclusion'] for name, job in by_name.items()},
+          }, indent=2) + '\n')
+          print('Verified tagged build and installed Flatpak. Security outcome:', security['conclusion'])
+          print('This workflow stages a draft only; it does not approve an audit exception or publish.')
+          PY
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .node-version
+      - name: Install package manager pinned by the tagged source
+        shell: bash
+        run: |
+          set -euo pipefail
+          manager=$(node -p 'require("./package.json").packageManager')
+          [[ "$manager" =~ ^pnpm@[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          npm install --global "$manager"
+      - name: Prepare source archive and visible security evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup show active-toolchain
+          bash scripts/prepare-source-archive.sh release-artifacts
+          cp docs/rsa-assessment.md "release-artifacts/Veyra-${RELEASE_TAG#v}-security-assessment.md"
+          cd release-artifacts
+          sha256sum ./*.flatpak ./*-source.tar.gz ./*-cargo-audit.log ./*-security-assessment.md ./*-validation.json > SHA256SUMS
+          sha256sum --check SHA256SUMS
+      - name: Attach assets while keeping the release unpublished
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          verify_draft() {
+            python3 <<'PY'
+          import json, os, pathlib, subprocess
+          def gh(*args):
+              return json.loads(subprocess.check_output(['gh', *args]))
+          repo, tag = os.environ['GITHUB_REPOSITORY'], os.environ['RELEASE_TAG']
+          metadata = json.loads(pathlib.Path(f'release-artifacts/Veyra-{tag[1:]}-validation.json').read_text())
+          draft = gh('release', 'view', tag, '--json', 'apiUrl,isDraft,isPrerelease,tagName')
+          assert draft['isDraft'] and draft['isPrerelease'] and draft['tagName'] == tag, 'Release must remain an unpublished prerelease draft'
+          assert draft['apiUrl'] == metadata['draft_api_url'], 'Draft identity changed'
+          ref = gh('api', f'repos/{repo}/git/ref/tags/{tag}')['object']
+          for _ in range(10):
+              if ref['type'] != 'tag':
+                  break
+              ref = gh('api', f"repos/{repo}/git/tags/{ref['sha']}")['object']
+          assert ref['type'] == 'commit' and ref['sha'] == metadata['source_commit'], 'Remote tag changed after validation'
+          PY
+          }
+          verify_draft
+          # No --clobber, create, edit or publish operation is permitted here.
+          gh release upload "$RELEASE_TAG" release-artifacts/*
+          verify_draft
+          printf 'Assets attached to an unpublished draft. Required security checks remain unchanged.\n' >> "$GITHUB_STEP_SUMMARY"

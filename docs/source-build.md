@@ -40,3 +40,14 @@ and follow `packaging/flatpak/README.md`; its final packaging build remains offl
 Archive headers use the source commit's timestamp. Package-manager metadata can
 vary between fetches, so neither byte-identical archives nor byte-identical native
 binaries are promised. Verify the release's `SHA256SUMS` before extracting.
+
+## Preparing an unpublished release draft
+
+The manually dispatched `prepare-release-draft.yml` workflow can attach files to
+an existing, empty prerelease draft when the normal publication gate is blocked.
+Run it from `main` with the existing prerelease `tag` and the completed tagged
+release `run_id`. It requires successful Linux, installed Flatpak and real
+Vaultwarden jobs, checks the tag/source binding and artifact hashes, and adds a
+fresh source archive, checksums and the original security-job log. A failing
+security audit remains visible. The workflow never publishes a release, grants
+an advisory exception or overwrites assets; partial uploads require review.
