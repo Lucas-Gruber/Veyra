@@ -79,10 +79,10 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/veyra-fixture-venv"
           "$RUNNER_TEMP/veyra-fixture-venv/bin/pip" install -r tests/integration/requirements.txt
           "$RUNNER_TEMP/veyra-fixture-venv/bin/python" tests/integration/seed-vaultwarden.py --server-url http://127.0.0.1:8222 --server-version "$VEYRA_TEST_SERVER_VERSION" --output "$RUNNER_TEMP/veyra-fixtures.json"
-      - name: Verify real authentication, decryption, sync and lock
+      - name: Verify real authentication, organization vaults, writes, sync and lock
         env:
           VEYRA_TEST_FIXTURE_FILE: ${{ runner.temp }}/veyra-fixtures.json
-        run: cargo test --locked --manifest-path src-tauri/Cargo.toml vaultwarden::tests::actual_vaultwarden_ -- --ignored
+        run: cargo test --locked --manifest-path src-tauri/Cargo.toml actual_vaultwarden_ -- --ignored --test-threads=1
       - name: Delete ephemeral fixture credentials
         if: always()
         run: rm -f -- "$RUNNER_TEMP/veyra-fixtures.json"
