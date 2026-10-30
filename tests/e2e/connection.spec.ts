@@ -75,7 +75,7 @@ test('desktop 2FA UI re-enters the password, displays partial-vault notice and c
   await page.getByRole('button', { name: 'Verify & unlock' }).click()
   await expect(page.locator('.item-row')).toHaveCount(1)
   await expect(page.locator('.item-row')).toContainText('Connected fixture login')
-  await expect(page.locator('.compatibility-notice')).toContainText('2 organization or unsupported items')
+  await expect(page.locator('.compatibility-notice')).toContainText('2 items use unsupported formats')
   await expect(page.getByRole('button', { name: 'Copy one-time password', exact: true })).toBeDisabled()
   await page.keyboard.press('Control+l')
   await expect(page.getByRole('button', { name: 'Connect & unlock' })).toBeVisible()
