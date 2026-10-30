@@ -22,7 +22,14 @@ pnpm exec nuxt prepare
 pnpm dev
 ```
 
-`pnpm generate` produces static client assets in `.output/public`; there is no Nuxt server inside the desktop application. `pnpm desktop:dev` starts the development asset server then Tauri. `pnpm desktop:build` generates assets and builds the native binary without packaging. The desktop supports read-only personal Vaultwarden connections. Use disposable fixtures for development; never use production credentials in CI. The browser remains sample-only.
+`pnpm generate` produces static client assets in `.output/public`; there is no Nuxt server inside the desktop application. `pnpm desktop:dev` starts the development asset server then Tauri. `pnpm desktop:build` generates assets and builds the native binary without packaging. The desktop supports personal and organization Vaultwarden connections and encrypted create/edit/favorite/Trash/Restore for the four implemented entry types. Use disposable fixtures for development; never use production credentials in CI. The browser remains sample-only.
+
+## Small commits and versions
+
+Commit each independent completed change separately. Use
+`pnpm release:version prerelease --dry-run` to review the next candidate and
+`pnpm release:version prerelease` to apply it; version changes get a separate
+commit. Neither command tags, pushes or publishes. See `docs/versioning.md`.
 
 ## Validation
 

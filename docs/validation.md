@@ -1,3 +1,38 @@
+# Organization/write and desktop fixes — 2026-10-30
+
+This checkout adds organization/collection selection, encrypted entry management,
+explicit contents, scalable typography and desktop integration. Local checks:
+
+| Check | Result |
+| --- | --- |
+| `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm generate` | Passed; 40 frontend unit tests |
+| Playwright complete suite | 16 passed; explicitly synthetic IPC/browser contracts |
+| Cargo formatting, Clippy all-targets with warnings denied, unit tests | Passed; 26 tests, six live tests separately ignored in unit runs |
+| Dedicated Vaultwarden 1.37.4 at committed digest | Six live tests passed: personal KDFs, 2FA, org keys/collections, supported entry CRUD, conflict/uncertain-write recovery |
+| Audit-exception regression tests | 17 passed; changed application sources remain outside the Alpha3 exception |
+| Frontend audit | Exit 0 at high threshold; two low findings remain |
+| Local launcher/GIO tests | Four passed in isolated XDG directories with harmless stubs |
+| Debian launcher packaging | Actual bundler with harmless binary stub; canonical ID desktop entry/icon verified, not a functional native-app package test |
+| Visual UI review | Synthetic demo/org/editor at 1280×820 and 760×560, including large text |
+| `cargo audit` on this workstation | Not run: cargo-audit is not installed; unresolved RSA finding is not waived |
+
+The development launcher/icon was registered for the current checkout with
+`pnpm desktop:integrate --dev`. No Veyra application was launched in the user's
+desktop session. Native KDE/GNOME/Wayland/X11 dock rendering, compositor focus-loss
+events and the reported GPU startup failure still need verification on the
+user's actual setup. New-source installed Flatpak testing and independent
+security review are not established by these local checks.
+
+Writes preserve original custom fields, extra URIs, attachments and passkeys;
+only supported editor fields change. Real organization owner writes pass, while
+local restriction flags are tested fail-closed. A dedicated server-side
+read-only-member/policy matrix remains unverified. Trash/Restore check a fresh
+revision but the server provides no atomic CAS. Update/favorite revisions use
+the server's check, including Vaultwarden's timestamp tolerance; this is not a
+guarantee of strict cross-client serialization. No permanent deletion, existing
+owner/collection moves, folder management or attachment/custom-field editor is
+implemented. No release, tag or push was created.
+
 # Current-instance validation — 2026-10-28
 
 These are actual results from the Debian 13 x86_64 cloud instance. Remote CI, publication, a new task, Flatpak and desktop compositors are separate claims.

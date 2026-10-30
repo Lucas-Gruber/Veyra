@@ -103,7 +103,7 @@ failure recovery and clearing keys on lock. It runs with the same
 flow; see `docs/rsa-assessment.md` for the release gate implications.
 
 
-A separate `writeAccount` has an initially empty vault for create/edit/favorite/
+A separate `writeAccount` isolates mutation fixtures from authentication tests for create/edit/favorite/
 trash/restore tests covering login, secure-note, card and identity entries. The
 organization fixture also exercises encrypted shared-item creation and editing.
 Writes preserve custom fields, additional URIs and password history. Tests check

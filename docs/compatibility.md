@@ -8,9 +8,21 @@ The initial reference server is Vaultwarden **1.37.4**, pinned to its official i
 
 The API may add response fields; parsers can ignore unrelated fields while requiring the fields needed to authenticate/decrypt. Unknown KDFs, excessive work parameters, unsupported cryptographic states, failed integrity checks and malformed required data fail with safe errors. Veyra must never compensate by lowering KDF settings or disabling TLS or integrity verification. A failed refresh preserves the prior complete snapshot; it does not report a successful sync.
 
+## Mutation compatibility
+
+Logins, secure notes, cards and identities support create/edit/favorite and
+reversible Trash/Restore, including writable organization collections. Existing
+item type, owner and collection assignments are fixed while editing. Folder
+creation/moves, custom-field editing, attachment editing and permanent deletion
+are deferred; existing opaque subfields are preserved. Read-only/hidden-password
+items and unsupported reprompts reject editing in Rust. Updates send the exact
+cached revision; remote changes require sync/reopening. Trash/Restore perform a
+fresh revision precheck but the server offers no atomic revision condition for
+those operations.
+
 ## Update detection
 
-`.github/workflows/vaultwarden-compatibility.yml` tests the pinned baseline and resolves the latest **stable** upstream GitHub release to an immutable container digest. It runs through the daily CI schedule, manually and as part of push/release validation. When latest matches both the baseline version and image digest, one job covers both. Retagged images are tested separately. Each job creates fresh synthetic PBKDF2 and Argon2 accounts in a disposable local server, then exercises real authentication, field decryption, sync, wrong-password rejection and locking.
+`.github/workflows/vaultwarden-compatibility.yml` tests the pinned baseline and resolves the latest **stable** upstream GitHub release to an immutable container digest. It runs through the daily CI schedule, manually and as part of push/release validation. When latest matches both the baseline version and image digest, one job covers both. Retagged images are tested separately. Each job creates fresh synthetic PBKDF2 and Argon2 accounts in a disposable local server, then exercises real authentication, field decryption, sync, wrong-password rejection, locking, organization/collection keys, encrypted CRUD, revision conflicts and uncertain-write recovery.
 
 A failing matrix blocks the release workflow. It can indicate either a client regression, an upstream API/crypto change, or a test-fixture registration change; inspect the failing step before assigning the cause. A workflow file alone does not establish that the remote scheduled job has run. `docs/validation.md` records only actual executions.
 

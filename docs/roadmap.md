@@ -1,6 +1,6 @@
 # Delivery roadmap
 
-The brief defines a mature product. Foundation and an initial read-only personal-vault integration are implemented;
+The brief defines a mature product. Foundation, connected personal/organization vaults and basic encrypted entry management are implemented;
 future milestones are not represented as working features. See validation.md for executed checks.
 
 1. **Foundation and polished UI.** Static Nuxt application, Tauri desktop shell,
@@ -15,9 +15,7 @@ future milestones are not represented as working features. See validation.md for
 3. **Desktop and offline security.** Encrypted offline cache, session/key lifecycle,
    auto-lock, configurable clipboard expiry, portal-based global Quick Access,
    startup/tray integration where supported. Test Wayland and X11 explicitly.
-4. **Vault management.** Create/edit/delete/restore, folders, favorites and supported
-   organization/collection behavior, with conflict-aware synchronization and
-   interrupted-write recovery. No fake successful save actions.
+4. **Vault management.** Basic create/edit/favorite/Trash/Restore and organization/collection filtering are implemented. Remaining: folder management, owner/collection moves, attachment/custom-field editing, conflict merging and broader role/policy validation. No fake successful save actions.
 5. **Browser companion.** Firefox and Chromium WebExtension, authenticated Native
    Messaging, reviewed URI matching, multiple accounts, multi-step fills and
    open-and-autofill. Test host registration for native and sandboxed browsers.
@@ -45,4 +43,4 @@ lock during a request, server errors, sync conflicts, hostile origins and denied
 Native Messaging/portal permissions. Never substitute a zero-test run or mock
 login success for those checks.
 
-The initial read-only connection now includes tested PBKDF2/Argon2, authenticator 2FA, decryption, sync and field/TOTP access. Other account/organization features remain outside the supported boundary. Publication remains blocked by the unresolved RSA audit and must pass installed Flatpak CI.
+The initial read-only connection now includes tested PBKDF2/Argon2, authenticator 2FA, decryption, sync and field/TOTP access. Basic organization keys/collections and the four implemented entry types now support authenticated writes; broader account/organization administration remains outside the supported boundary. Publication remains blocked by the unresolved RSA audit and must pass installed Flatpak CI.

@@ -19,9 +19,28 @@ Rust owns the connection, session token, SDK key store and encrypted ciphers. Th
 
 The master password exists briefly in the Vue form/IPC input, is immediately cleared from form state and moved into `Zeroizing` in Rust. It is not persisted. Rust sends a derived authentication hash, initializes SDK crypto and performs the initial sync before declaring a connected session. SDK authentication is not used because its second prelogin fetch would undermine the single checked KDF budget. All cryptographic derivation, unwrap, cipher decryption and TOTP use official SDK operations; the project does not invent a cipher protocol.
 
-Only bounded display metadata crosses general IPC. Passwords and TOTP codes require explicit scoped access; seeds, tokens, keys, notes and custom fields are excluded. Reveals expire and guard against lock/selection races. Both windows read the same native metadata snapshot and observe session events. Frontend state is not an authentication authority.
+Only bounded display metadata crosses general IPC. Passwords and TOTP codes require explicit scoped access; seeds, tokens, keys, notes and custom fields are excluded from snapshots. The main window can explicitly request transient notes/card/identity contents or a scoped editor draft; drafts never enter shared frontend state or persistence. Contents hide after 60 seconds, window blur or lock. Login content viewing does not load passwords or TOTP seeds; those use the separate credential commands. An explicit editor can request a login seed to edit it. Reveals expire and guard against lock/selection races. Both windows read the same native metadata snapshot and observe session events. Frontend state is not an authentication authority.
 
-Locking cancels current work and advances a generation. Stale async login/sync completions cannot restore it. Tokens and SDK keys are dropped/cleared and metadata disappears in both windows. Session expiry also locks. No refresh-token persistence or offline unlock is claimed. Sync is read-only and transactional: parse/decrypt the complete supported personal snapshot before replacing the previous one. Organization/newer unsupported items are counted visibly, not represented as a complete vault.
+Locking cancels current work and advances a generation. Stale async login/sync completions cannot restore it. Tokens and SDK keys are dropped/cleared and metadata disappears in both windows. Session expiry also locks. No refresh-token persistence or offline unlock is claimed. Sync is transactional: a fresh SDK key store, organization keys, collections and all supported ciphers must verify before replacing the previous snapshot. Unknown newer item types are counted visibly. Personal-only sessions do not import an unused account private key; organization sessions unwrap it using the official SDK and use its RSA organization-key path. Lock clears both stores and all organization metadata.
+
+## Authenticated writes
+
+Only main can request editor drafts/contents or save an encrypted item. Quick
+Access can change a favorite; Trash/Restore are rejected there using the native
+caller identity. The backend loads the original complete SDK cipher view,
+checks permissions/reprompt and the captured session generation, and encrypts
+with the pinned SDK. Existing per-cipher keys, custom fields, extra URIs,
+attachments and passkeys survive edits. New entries use SDK-generated per-cipher
+keys. Changed passwords retain up to five encrypted history entries.
+
+Updates/favorites include the full `lastKnownRevisionDate`; detected conflicts are errors, never an automatic retry/overwrite. Vaultwarden's
+revision comparison has timestamp tolerance; it is not a strict atomic CAS
+contract for changes made within that tolerance. Trash/Restore are reversible server operations
+with a fresh revision precheck; these endpoints do not support an atomic CAS,
+so a race between checking and applying remains possible. No permanent-delete
+command exists. A dispatched write is never automatically retried. Unknown
+outcomes or failed post-write refreshes require sync/inspection before another
+write. Native mutex/session guards keep snapshot commits in operation order.
 
 ## SDK and license decision
 
@@ -33,4 +52,4 @@ Sources: https://github.com/bitwarden/sdk-internal/releases/tag/rust-v4.0.0 , ht
 
 ## Delivery boundaries
 
-Flatpak uses a maintained GNOME 51 runtime. The current manifest packages a prebuilt native binary offline; this is offline packaging, not yet a fully vendored source build in the SDK sandbox. CI installs and functionally smoke-tests the bundle before publication. Global shortcut portals, browser Native Messaging, offline encrypted storage, editing and conflict resolution remain separate milestones.
+Flatpak uses a maintained GNOME 51 runtime. The current manifest packages a prebuilt native binary offline; this is offline packaging, not yet a fully vendored source build in the SDK sandbox. CI installs and functionally smoke-tests the bundle before publication. Global shortcut portals, browser Native Messaging, offline encrypted storage, richer vault moves/folder management and conflict merging remain separate milestones.

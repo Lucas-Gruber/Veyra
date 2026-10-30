@@ -1,6 +1,6 @@
 # Security boundaries and release gates
 
-Veyra is an early read-only integration preview and has not received independent security review. Do not equate passing tests with production security.
+Veyra is an early integration preview and has not received independent security review. Do not equate passing tests with production security.
 
 ## Threats and controls
 
@@ -9,12 +9,12 @@ Veyra is an early read-only integration preview and has not received independent
 | Server address and transport | HTTPS with certificate validation, no embedded credentials/query/fragment, no redirects, timeouts and response size limits |
 | Server-controlled KDF | Single prelogin fetch; signed integers checked before conversion; PBKDF2 100k..2m iterations, Argon2id 16..256MiB, 2..10 iterations, 1..8 lanes |
 | Keys and encrypted entries | Pinned official GPL Bitwarden crypto, explicit strict-decryption flag check; integrity failures reject the refresh |
-| IPC and frontend | Narrow local-window permissions; metadata projection excludes tokens, keys, passwords, seeds, notes and custom-field values; explicit field access |
+| IPC and frontend | Narrow local-window permissions; metadata projection excludes tokens, keys, passwords, seeds, notes and custom-field values; explicit field/content access; editor plaintext is transient component state only |
 | Password input | Transient form and IPC only, cleared after submit/unmount; moved into zeroizing native storage; never browser persistence |
 | Lock/expiry/racing operations | Cancellation plus generation authority in Rust, keys/tokens cleared, metadata removed across both windows |
 | Clipboard | Native worker keeps ownership, clears after 30s only if unchanged; lock also requests conditional clear |
 | Untrusted vault metadata | Vue text rendering, bundled local icons, no remote favicon/content execution; HTTPS-only explicit website opening |
-| Synchronization | Read-only, transactional supported-personal-vault snapshot; previous complete snapshot retained on failure |
+| Synchronization | Transactional supported personal/organization snapshot with a fresh SDK key store; previous keys and complete snapshot retained on failure |
 
 A debug-only explicit flag permits HTTP solely to literal loopback test servers. It cannot enable plaintext remote connections or weaken release TLS. Tests use disposable synthetic accounts, never production credentials.
 
@@ -22,7 +22,25 @@ The native key store/allocator, JS engine, OS clipboard and third-party history 
 
 ## Supported account behavior
 
-V1 personal vaults are the current boundary. Organizations, signed/new account crypto, unsupported item types and unavailable authentication methods are reported, not silently downgraded. Only authenticator TOTP two-factor login is supported; email/WebAuthn and other flows are not claimed. Locking signs out and requires full sign-in. Notes/cards/identities expose metadata only in this version.
+V1 personal and organization vaults are supported for the four implemented entry types. Signed/new account crypto, newer item types and unavailable authentication methods fail or are reported explicitly, never silently downgraded. Only authenticator TOTP two-factor login is supported; email/WebAuthn and other flows are not claimed. Locking signs out and requires full sign-in. Notes/cards/identities require explicit contents access. Editor fields are scoped to main, cleared on close/lock/unmount and guarded against late replies; content reveals expire after 60 seconds or focus loss. Read-only and hidden-password restrictions are enforced in Rust, regardless of UI buttons.
+
+## Write boundaries
+
+Create, edit, favorite, Trash and Restore send authenticated encrypted requests.
+Existing custom fields, extra URIs, attachments, passkeys and keys are preserved.
+Write requests capture the active session generation. Save/favorite revisions
+are checked by Vaultwarden, with its server-side timestamp tolerance rather than
+a strict cross-client CAS guarantee. Trash/Restore recheck the remote revision first but
+have no atomic server-side CAS; another client can race that precheck. Permanent
+deletion and moving existing entries between owners/collections are unavailable.
+Unknown write outcomes and failed refreshes block further writes until sync;
+no mutation is automatically retried. A lock can cancel the client response but
+cannot undo a mutation the server already received.
+
+Organization sessions now reach the SDK's RSA OAEP private-key operation. The
+historical Alpha3 exception below does not cover these changes. See the updated
+[source assessment](rsa-assessment.md); no new release approval is implied by
+successful protocol tests.
 
 ## Dependency audit status
 

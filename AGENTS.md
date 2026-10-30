@@ -12,6 +12,7 @@ Veyra is a Linux-first Tauri 2 application with a statically generated Nuxt 4 / 
 - Do not invent cryptography, weaken TLS or expose an unauthenticated local HTTP API.
 - Frontend persistence is limited to non-sensitive preferences. Locking must remove vault metadata from visible interfaces and search results.
 - Keep desktop capabilities minimal and distinguish desktop-only functionality from browser demonstration behavior.
+- Commit independent completed changes separately. Review version changes with `pnpm release:version prerelease --dry-run`, apply with `pnpm release:version prerelease` or an explicit canonical version, and commit version changes separately. Never infer publication approval from a version change.
 - Validate with `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm generate` and `cargo test --manifest-path src-tauri/Cargo.toml`; use `cargo fmt` and Clippy when Rust changes.
 - Document what is functional, deferred and unverified. Do not claim production security or compositor compatibility without evidence.
 - Cloud tasks already have an isolated checkout; use it directly, without creating Git worktrees unless explicitly requested.
