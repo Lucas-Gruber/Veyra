@@ -6540,6 +6540,7 @@ dependencies = [
  "tokio-util",
  "url",
  "uuid",
+ "zbus",
  "zeroize",
 ]
 

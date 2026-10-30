@@ -34,6 +34,9 @@ bitwarden-crypto = { git = "https://github.com/bitwarden/sdk-internal", rev = "b
 bitwarden-vault = { git = "https://github.com/bitwarden/sdk-internal", rev = "b865d1db0025d9d12bea871a3a131c05aaeed205" }
 bitwarden-api-api = { git = "https://github.com/bitwarden/sdk-internal", rev = "b865d1db0025d9d12bea871a3a131c05aaeed205" }
 
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus = "=5.19.0"
+
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]
