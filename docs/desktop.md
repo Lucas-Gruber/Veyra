@@ -6,6 +6,12 @@ packages install their launcher/icon. For an unpackaged local build, register it
 once with `pnpm desktop:integrate /absolute/path/to/veyra`; rerun after moving the
 binary. A debug binary still needs the Nuxt development server running. This
 installs only the Veyra launcher and icon under the user's XDG data directory.
+For development, run `pnpm desktop:integrate --dev` once from the configured
+development shell. Its launcher starts `pnpm desktop:dev` in this checkout,
+including the development server, using the resolved pnpm and Node paths without
+a shell. Rerun registration after moving the checkout or changing those runtime
+paths. This uses the same launcher ID as a native install, so the last explicit
+registration determines what launching Veyra from the dock starts.
 Paths containing `%`, `=` or control characters are rejected before writing a
 launcher because desktop launchers cannot reliably execute them. Existing
 symlink targets are also rejected. The launcher helper can be verified without

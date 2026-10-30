@@ -1,5 +1,6 @@
 """Exercise launcher registration using temporary XDG data and harmless stubs."""
 import os
+import json
 from pathlib import Path
 import shutil
 import subprocess
@@ -67,6 +68,34 @@ class DesktopIntegrationTests(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn("path must not contain", result.stderr)
                 self.assertFalse(self.data.exists())
+
+    @unittest.skipUnless(shutil.which("gio"), "gio is needed to verify actual launcher parsing")
+    def test_dev_launcher_preserves_runtime_arguments_and_working_directory(self):
+        tools = self.root / 'runtime with spaces $ dollar ` tick " quote \\ slash'
+        tools.mkdir()
+        node = tools / "node"
+        node.write_text("#!/bin/sh\nexit 0\n")
+        node.chmod(0o755)
+        pnpm = tools / "pnpm"
+        pnpm.write_text(
+            '#!/usr/bin/python3\nimport json, os, pathlib, sys\n'
+            'pathlib.Path(os.environ["VEYRA_DESKTOP_TEST_RESULT"]).write_text('
+            'json.dumps({"args": sys.argv[1:], "cwd": os.getcwd(), "path": os.environ["PATH"]}))\n'
+        )
+        pnpm.chmod(0o755)
+        self.environment["PATH"] = str(tools) + os.pathsep + os.environ["PATH"]
+        result = self.install("--dev")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        subprocess.run(["gio", "launch", str(self.launcher)], env=self.environment, check=True)
+        for _ in range(40):
+            if self.marker.exists():
+                break
+            time.sleep(0.025)
+        launched = json.loads(self.marker.read_text())
+        self.assertEqual(launched["args"], ["--dir", str(ROOT), "desktop:dev"])
+        self.assertEqual(launched["cwd"], str(ROOT))
+        self.assertEqual(launched["path"].split(os.pathsep)[:2], [str(tools), str(tools)])
+        self.assertIn(f"StartupWMClass={APP_ID}\n", self.launcher.read_text())
 
     def test_existing_symlink_targets_are_untouched(self):
         binary = self.binary("ordinary")
