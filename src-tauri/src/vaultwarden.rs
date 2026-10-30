@@ -1,5 +1,7 @@
 //! Bounded Vaultwarden HTTP transport with official Bitwarden GPL cryptography.
 //! Tokens, encrypted ciphers and SDK keys remain in Rust and are never written to disk.
+mod editing;
+pub use editing::{ChangeAction, ChangeItemRequest, EditableItem, ItemDraft};
 use std::{collections::HashMap, num::NonZeroU32, time::Duration};
 
 use bitwarden_api_api::models::{
@@ -83,6 +85,10 @@ pub struct ItemMetadata {
     pub read_only: bool,
     pub organization_id: Option<String>,
     pub collection_ids: Vec<String>,
+    pub revision: String,
+    pub deleted: bool,
+    pub can_delete: bool,
+    pub can_restore: bool,
 }
 
 #[derive(Clone, Serialize)]
@@ -295,6 +301,7 @@ pub struct Vaultwarden {
     private_key: EncString,
     pub organizations: Vec<OrganizationMetadata>,
     pub collections: Vec<CollectionMetadata>,
+    write_needs_sync: bool,
     /// Newer unsupported item types are counted explicitly.
     pub skipped_items: usize,
 }
@@ -335,6 +342,8 @@ impl Vaultwarden {
             .connect_timeout(Duration::from_secs(10))
             .timeout(Duration::from_secs(30))
             .redirect(reqwest::redirect::Policy::none())
+            // Mutations must not be transparently replayed, including protocol NACKs.
+            .retry(reqwest::retry::never())
             .user_agent(concat!("Veyra/", env!("CARGO_PKG_VERSION")))
             .build()
             .map_err(|_| network_error())?;
@@ -490,6 +499,7 @@ impl Vaultwarden {
             private_key,
             organizations: vec![],
             collections: vec![],
+            write_needs_sync: false,
         };
         vault.sync().await?;
         Ok(vault)
@@ -497,6 +507,10 @@ impl Vaultwarden {
 
     pub fn metadata(&self) -> Vec<ItemMetadata> {
         self.items.clone()
+    }
+
+    pub fn needs_sync(&self) -> bool {
+        self.write_needs_sync
     }
 
     pub fn expires_in(&self) -> Duration {
@@ -542,6 +556,7 @@ impl Vaultwarden {
             ));
         }
         let profile = sync.profile.ok_or_else(invalid_response)?;
+        let user_id = profile.id.ok_or_else(invalid_response)?;
         let orgs = profile.organizations.unwrap_or_default();
         if orgs.len() > 1000 {
             return Err(invalid_response());
@@ -578,6 +593,16 @@ impl Vaultwarden {
             org_keys,
         )
         .await?;
+        next_client
+            .internal
+            .init_user_id(
+                user_id
+                    .to_string()
+                    .parse()
+                    .map_err(|_| invalid_response())?,
+            )
+            .await
+            .map_err(|_| invalid_response())?;
         let mut collections = vec![];
         for collection in sync.collections.unwrap_or_default() {
             let id = collection.id.ok_or_else(invalid_response)?;
@@ -635,9 +660,6 @@ impl Vaultwarden {
                 continue;
             }
             let cipher = Cipher::try_from(model).map_err(|_| decryption_error())?;
-            if cipher.deleted_date.is_some() {
-                continue;
-            }
             let kind = match cipher.r#type {
                 CipherType::Login => "login",
                 CipherType::SecureNote => "note",
@@ -686,6 +708,7 @@ impl Vaultwarden {
         self.encrypted = next_encrypted;
         self.items = next_items;
         self.skipped_items = skipped_items;
+        self.write_needs_sync = false;
         Ok(())
     }
 
@@ -699,6 +722,7 @@ impl Vaultwarden {
                     .id
                     .as_ref()
                     .is_some_and(|value| value.to_string() == id)
+                    && cipher.deleted_date.is_none()
             })
             .ok_or_else(|| VaultError::new("item_not_found", "This item is unavailable."))?;
         let mut view = self
@@ -718,7 +742,7 @@ impl Vaultwarden {
         self.require_active()?;
         self.items
             .iter()
-            .find(|item| item.id == id && !item.url.is_empty())
+            .find(|item| item.id == id && !item.deleted && !item.url.is_empty())
             .map(|item| item.url.clone())
             .ok_or_else(|| {
                 VaultError::new(
@@ -800,13 +824,27 @@ fn project_metadata(view: &CipherView, kind: &'static str) -> Result<ItemMetadat
         tags: vec![],
         has_password: permitted && login.is_some_and(|v| v.password.is_some()),
         has_totp: permitted && login.is_some_and(|v| v.totp.is_some()),
-        read_only: true,
+        read_only: !editing::can_edit(view) || view.deleted_date.is_some(),
         organization_id: view.organization_id.map(|id| id.to_string()),
         collection_ids: view
             .collection_ids
             .iter()
             .map(ToString::to_string)
             .collect(),
+        revision: view.revision_date.to_rfc3339(),
+        deleted: view.deleted_date.is_some(),
+        can_delete: editing::can_edit(view)
+            && view.deleted_date.is_none()
+            && view
+                .permissions
+                .as_ref()
+                .map_or(view.edit, |permissions| permissions.delete),
+        can_restore: editing::can_edit(view)
+            && view.deleted_date.is_some()
+            && view
+                .permissions
+                .as_ref()
+                .map_or(view.edit, |permissions| permissions.restore),
     })
 }
 
@@ -977,7 +1015,7 @@ mod tests {
         assert!(sync.ciphers.unwrap().is_empty());
     }
 
-    fn single_response_server(response: impl AsRef<[u8]>) -> Url {
+    pub(super) fn single_response_server(response: impl AsRef<[u8]>) -> Url {
         use std::io::{Read, Write};
         let response = response.as_ref().to_vec();
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();

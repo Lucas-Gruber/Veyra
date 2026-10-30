@@ -44,6 +44,7 @@ pub struct SessionInner {
     pub unsupported_items: usize,
     pub organizations: Vec<OrganizationMetadata>,
     pub collections: Vec<CollectionMetadata>,
+    pub needs_sync: bool,
     pub cancellation: CancellationToken,
 }
 
@@ -61,6 +62,7 @@ impl SessionInner {
         self.organizations.clear();
         self.collections.clear();
         self.unsupported_items = 0;
+        self.needs_sync = false;
         self.vault.take()
     }
 
@@ -92,6 +94,7 @@ impl Default for Session {
             unsupported_items: 0,
             organizations: vec![],
             collections: vec![],
+            needs_sync: false,
             cancellation: CancellationToken::new(),
         }))
     }
@@ -105,12 +108,14 @@ pub struct MetadataSnapshot {
     pub unsupported_items: usize,
     pub organizations: Vec<OrganizationMetadata>,
     pub collections: Vec<CollectionMetadata>,
+    pub needs_sync: bool,
 }
 
 impl SessionInner {
     pub fn snapshot(&self) -> MetadataSnapshot {
         MetadataSnapshot {
             session: self.status.clone(),
+            needs_sync: !self.status.locked && self.needs_sync,
             organizations: if self.status.locked {
                 vec![]
             } else {
@@ -187,6 +192,10 @@ mod tests {
             read_only: true,
             organization_id: None,
             collection_ids: vec![],
+            revision: "2026-10-29T00:00:00Z".into(),
+            deleted: false,
+            can_delete: false,
+            can_restore: false,
         }
     }
 
@@ -196,6 +205,7 @@ mod tests {
         let mut state = session.0.lock().unwrap();
         state.metadata.push(metadata());
         state.unsupported_items = 9;
+        state.needs_sync = true;
         state.organizations.push(OrganizationMetadata {
             id: "org-fixture".into(),
             name: "Synthetic organization".into(),
@@ -213,6 +223,7 @@ mod tests {
         assert!(snapshot.collections.is_empty());
         assert_eq!(snapshot.unsupported_items, 0);
         assert!(snapshot.session.locked);
+        assert!(!snapshot.needs_sync);
     }
 
     #[test]
@@ -223,10 +234,12 @@ mod tests {
         state.status.mode = "connected";
         state.metadata.push(metadata());
         state.unsupported_items = 2;
+        state.needs_sync = true;
         let previous = state.status.generation;
         state.invalidate();
         assert!(state.metadata.is_empty());
         assert_eq!(state.unsupported_items, 0);
+        assert!(!state.needs_sync);
         assert!(state.require_generation(previous).is_err());
         assert_eq!(state.status.mode, "disconnected");
         assert!(state.status.last_sync.is_none());

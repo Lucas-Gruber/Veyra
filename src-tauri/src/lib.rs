@@ -12,7 +12,9 @@ use std::sync::Arc;
 use tauri::{Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_opener::OpenerExt;
 use tokio::sync::Mutex as AsyncMutex;
-use vaultwarden::{Field, TwoFactorInput, VaultError, Vaultwarden};
+use vaultwarden::{
+    ChangeItemRequest, EditableItem, Field, ItemDraft, TwoFactorInput, VaultError, Vaultwarden,
+};
 use zeroize::Zeroizing;
 
 fn current(session: &Session) -> Result<SessionStatus, VaultError> {
@@ -202,9 +204,9 @@ async fn sync_vault(app: tauri::AppHandle) -> Result<MetadataSnapshot, VaultErro
         biased;
         _ = cancellation.cancelled() => return Err(error("cancelled", "Synchronization was cancelled because the session changed.")),
         result = async {
-            let mut vault = vault.lock().await;
+            let mut vault = vault.lock_owned().await;
             vault.sync().await?;
-            Ok::<_, VaultError>((vault.metadata(), vault.skipped_items, vault.organizations.clone(), vault.collections.clone()))
+            Ok::<_, VaultError>((vault.metadata(), vault.skipped_items, vault.organizations.clone(), vault.collections.clone(), vault))
         } => result,
     };
     let session = app.state::<Session>();
@@ -212,10 +214,13 @@ async fn sync_vault(app: tauri::AppHandle) -> Result<MetadataSnapshot, VaultErro
     state.require_generation(generation)?;
     state.status.require_unlocked()?;
     match result {
-        Ok((items, unsupported, organizations, collections)) => {
+        Ok((items, unsupported, organizations, collections, _vault_guard)) => {
+            // Retain the vault mutex until this snapshot is committed. A newer
+            // operation must not publish and then be overwritten by this one.
             state.metadata = items;
             state.organizations = organizations;
             state.collections = collections;
+            state.needs_sync = false;
             state.unsupported_items = unsupported;
             state.status.last_sync = Some(chrono::Utc::now().to_rfc3339());
             let snapshot = state.snapshot();
@@ -247,6 +252,147 @@ fn expire_session(app: &tauri::AppHandle, generation: u64) -> Result<(), VaultEr
     changed(app, &status);
     tauri::async_runtime::spawn(session::retire(retired));
     Ok(())
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WriteOutcome {
+    item_id: String,
+    refresh_pending: bool,
+    snapshot: MetadataSnapshot,
+}
+
+async fn load_item_contents(
+    app: tauri::AppHandle,
+    item_id: String,
+    editable: bool,
+) -> Result<EditableItem, VaultError> {
+    let (generation, vault, cancellation) = connected(&app.state::<Session>())?;
+    let result = tokio::select! {
+        biased;
+        _ = cancellation.cancelled() => return Err(error("cancelled", "Item access was cancelled because the session changed.")),
+        result = async {
+            let vault = vault.lock().await;
+            if editable { vault.editable_item(&item_id, generation).await }
+            else { vault.item_contents(&item_id, generation).await }
+        } => result,
+    };
+    if matches!(&result, Err(failure) if failure.code == "session_expired") {
+        expire_session(&app, generation)?;
+        return result;
+    }
+    let session = app.state::<Session>();
+    let state = session.0.lock().map_err(|_| unavailable())?;
+    state.require_generation(generation)?;
+    state.status.require_unlocked()?;
+    result
+}
+
+#[tauri::command]
+async fn get_item_contents(
+    app: tauri::AppHandle,
+    item_id: String,
+) -> Result<EditableItem, VaultError> {
+    load_item_contents(app, item_id, false).await
+}
+
+#[tauri::command]
+async fn get_editable_item(
+    app: tauri::AppHandle,
+    item_id: String,
+) -> Result<EditableItem, VaultError> {
+    load_item_contents(app, item_id, true).await
+}
+
+async fn write_item(
+    app: tauri::AppHandle,
+    expected_generation: u64,
+    draft: Option<ItemDraft>,
+    change: Option<ChangeItemRequest>,
+) -> Result<WriteOutcome, VaultError> {
+    let (generation, vault, cancellation) = connected(&app.state::<Session>())?;
+    if generation != expected_generation {
+        return Err(error(
+            "cancelled",
+            "The session changed. Reopen the editor before saving.",
+        ));
+    }
+    // Keep the owned guard through the session commit so concurrent sync/write
+    // completions cannot publish snapshots or needs_sync in the wrong order.
+    let (result, items, unsupported, organizations, collections, needs_sync, _vault_guard) = tokio::select! {
+        biased;
+        _ = cancellation.cancelled() => return Err(error("cancelled", "The session changed. The write may have reached the server; inspect the vault after signing in again.")),
+        result = async {
+            let mut vault = vault.lock_owned().await;
+            let result = if let Some(draft) = draft { vault.save_item(draft).await }
+                else if let Some(change) = change { vault.change_item(change).await }
+                else { Err(unavailable()) };
+            (result, vault.metadata(), vault.skipped_items, vault.organizations.clone(), vault.collections.clone(), vault.needs_sync(), vault)
+        } => result,
+    };
+    let result = match result {
+        Err(failure) if failure.code == "session_expired" => {
+            expire_session(&app, generation)?;
+            return Err(failure);
+        }
+        other => other,
+    };
+    let session = app.state::<Session>();
+    let mut state = session.0.lock().map_err(|_| unavailable())?;
+    state.require_generation(generation)?;
+    state.status.require_unlocked()?;
+    state.needs_sync = needs_sync;
+    state.metadata = items;
+    state.unsupported_items = unsupported;
+    state.organizations = organizations;
+    state.collections = collections;
+    let (item_id, refresh_pending) = match result {
+        Ok(value) => value,
+        Err(failure) => {
+            let status = state.status.clone();
+            drop(state);
+            changed(&app, &status);
+            return Err(failure);
+        }
+    };
+    if !refresh_pending {
+        state.status.last_sync = Some(chrono::Utc::now().to_rfc3339());
+    }
+    let snapshot = state.snapshot();
+    drop(state);
+    changed(&app, &snapshot.session);
+    Ok(WriteOutcome {
+        item_id,
+        refresh_pending,
+        snapshot,
+    })
+}
+
+#[tauri::command]
+async fn save_item(
+    app: tauri::AppHandle,
+    expected_generation: u64,
+    draft: ItemDraft,
+) -> Result<WriteOutcome, VaultError> {
+    write_item(app, expected_generation, Some(draft), None).await
+}
+
+#[tauri::command]
+async fn change_item(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+    expected_generation: u64,
+    request: ChangeItemRequest,
+) -> Result<WriteOutcome, VaultError> {
+    // The compact window only exposes favorite toggles. Destructive actions
+    // require the main window, even if its shared command is invoked directly.
+    if window.label() != "main" && !matches!(&request.action, vaultwarden::ChangeAction::Favorite) {
+        return Err(error(
+            "write_not_allowed",
+            "Open the main window to move or restore an item.",
+        ));
+    }
+    write_item(app, expected_generation, None, Some(request)).await
 }
 
 async fn read_field(
@@ -529,6 +675,10 @@ pub fn run() {
             lock_vault,
             list_metadata,
             sync_vault,
+            get_item_contents,
+            get_editable_item,
+            save_item,
+            change_item,
             copy_field,
             reveal_field,
             show_quick_access,

@@ -57,7 +57,7 @@ fixture_dir=$(mktemp -d /tmp/veyra-fixtures.XXXXXX)
   --output "$fixture_dir/accounts.json"
 export VEYRA_TEST_FIXTURE_FILE="$fixture_dir/accounts.json"
 cargo test --locked --manifest-path src-tauri/Cargo.toml \
-  vaultwarden::tests::actual_vaultwarden_ -- --ignored
+  actual_vaultwarden_ -- --ignored --test-threads=1
 ```
 
 The credential manifest must be outside the checkout and is created with mode
@@ -87,8 +87,9 @@ second-factor login, so repeated test runs do not rely on weakening replay
 protection. Activation currently uses the previous time step accepted by the
 dedicated server's standard one-step drift allowance.
 
-Both Rust live tests are explicitly ignored during ordinary unit runs. The
-command above executes both the personal-vault and authenticator-login tests.
+All six Rust live tests are explicitly ignored during ordinary unit runs. The
+command above executes personal-vault, authenticator-login, organization and
+write tests. Run them serially against this shared disposable server.
 A zero-test or skipped-test run is not evidence of
 real server compatibility. The fixture helper supports no production server
 URL, stores no real user credentials and cannot validate KDE/GNOME/Wayland or
@@ -100,3 +101,19 @@ organization test checks key/collection/credential decryption, transactional
 failure recovery and clearing keys on lock. It runs with the same
 `actual_vaultwarden_` filter. RSA private-key decryption is now reachable in this
 flow; see `docs/rsa-assessment.md` for the release gate implications.
+
+
+A separate `writeAccount` has an initially empty vault for create/edit/favorite/
+trash/restore tests covering login, secure-note, card and identity entries. The
+organization fixture also exercises encrypted shared-item creation and editing.
+Writes preserve custom fields, additional URIs and password history. Tests check
+server revision conflicts, local permission restrictions and refusal to repeat a
+write after an uncertain server error. Content reads allow read-only entries with
+view-password permission, omit login password/TOTP values, and reject restricted,
+reprompted, partial or deleted entries.
+
+Trash and restore use the official protocol endpoints, which have no atomic
+revision condition. Veyra refreshes permissions and checks the supplied revision
+immediately before dispatch, but another client can still race that preflight.
+No permanent-delete endpoint is exposed. Tests do not establish compatibility
+with every organization member role or policy.

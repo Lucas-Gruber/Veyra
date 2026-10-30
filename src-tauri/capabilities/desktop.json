@@ -21,6 +21,7 @@
     "allow-login-vault",
     "allow-list-metadata",
     "allow-sync-vault",
+    "allow-change-item",
     "allow-app-info",
     "allow-check-for-updates",
     "allow-open-release-page"

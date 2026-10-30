@@ -388,6 +388,9 @@ def main() -> None:
             raise FixtureError('The credential manifest belongs to another test schema or server')
         for account in manifest['accounts']:
             verify_account(account)
+        for key in ('writeAccount', 'organizationAccount'):
+            if key in manifest:
+                verify_account(manifest[key])
         print_fixture_summary(manifest, 'verified')
         return
     run = uuid.uuid4().hex[:12]
@@ -401,9 +404,10 @@ def main() -> None:
     accounts.append(authenticator)
     organization_account = create_organization_fixture(create_account('Organization', {
         'kdf': 0, 'kdfIterations': 600000, 'kdfMemory': None, 'kdfParallelism': None}, run))
+    write_account = create_account('Writes', {'kdf': 0, 'kdfIterations': 600000, 'kdfMemory': None, 'kdfParallelism': None}, run)
     _, config = request('/api/config')
     version = config.get('version', 'unknown') if isinstance(config, dict) else 'unknown'
-    manifest = {'schemaVersion': 1, 'serverUrl': SERVER, 'vaultwardenVersion': args.server_version, 'serverCompatibilityVersion': version, 'accounts': accounts, 'organizationAccount': organization_account}
+    manifest = {'schemaVersion': 1, 'serverUrl': SERVER, 'vaultwardenVersion': args.server_version, 'serverCompatibilityVersion': version, 'accounts': accounts, 'organizationAccount': organization_account, 'writeAccount': write_account}
     fd = os.open(OUTPUT, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
     os.fchmod(fd, 0o600)
     with os.fdopen(fd, 'w') as handle:
