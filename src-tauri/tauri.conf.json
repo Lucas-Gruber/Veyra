@@ -42,6 +42,15 @@
     "longDescription": "A Linux-first, read-only Vaultwarden client with keyboard-first Quick Access. This early preview supports personal vaults; see documented compatibility and security limitations.",
     "icon": [
       "icons/icon.png"
-    ]
+    ],
+    "linux": {
+      "deb": {
+        "desktopTemplate": "../packaging/linux/veyra.desktop.hbs",
+        "files": {
+          "/usr/share/applications/io.github.LucasGruber.Veyra.desktop": "../packaging/flatpak/io.github.LucasGruber.Veyra.desktop",
+          "/usr/share/icons/hicolor/scalable/apps/io.github.LucasGruber.Veyra.svg": "../public/io.github.LucasGruber.Veyra.svg"
+        }
+      }
+    }
   }
 }

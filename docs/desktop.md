@@ -13,6 +13,11 @@ opening Veyra or changing the user's launcher with
 `python3 -m unittest discover -s tests/desktop -v`; its launch test uses a harmless
 stub and a temporary XDG data directory.
 
+Debian bundles explicitly install the same application-ID launcher and SVG icon
+as Flatpak and the local helper. Tauri's generated `Veyra.desktop` is hidden to
+avoid a second launcher: its default filename does not match the GTK application
+ID used by Wayland docks.
+
 The native main and Quick Access WebViews share one Rust session and metadata snapshot. Tauri capabilities allow only scoped local commands and session event listeners; there is no shell/filesystem/generic clipboard/opener IPC exposed. Website opening is a native operation restricted to a known item's HTTPS URL and an active session.
 
 Native Quick Access fills its undecorated window with one surface and hides on
