@@ -76,6 +76,7 @@ pub struct ItemMetadata {
     pub kind: &'static str,
     pub favorite: bool,
     pub folder: String,
+    pub folder_id: Option<String>,
     pub color: &'static str,
     pub initials: String,
     pub updated: String,
@@ -89,6 +90,13 @@ pub struct ItemMetadata {
     pub deleted: bool,
     pub can_delete: bool,
     pub can_restore: bool,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FolderMetadata {
+    pub id: String,
+    pub name: String,
 }
 
 #[derive(Clone, Serialize)]
@@ -301,6 +309,7 @@ pub struct Vaultwarden {
     private_key: EncString,
     pub organizations: Vec<OrganizationMetadata>,
     pub collections: Vec<CollectionMetadata>,
+    pub folders: Vec<FolderMetadata>,
     write_needs_sync: bool,
     /// Newer unsupported item types are counted explicitly.
     pub skipped_items: usize,
@@ -499,6 +508,7 @@ impl Vaultwarden {
             private_key,
             organizations: vec![],
             collections: vec![],
+            folders: vec![],
             write_needs_sync: false,
         };
         vault.sync().await?;
@@ -630,6 +640,7 @@ impl Vaultwarden {
             });
         }
         let mut folder_names = HashMap::new();
+        let mut folders = Vec::new();
         for folder in sync.folders.unwrap_or_default() {
             let id = folder.id.ok_or_else(invalid_response)?;
             let name =
@@ -639,6 +650,13 @@ impl Vaultwarden {
             let name: String = name
                 .decrypt(&mut context, SymmetricKeySlotId::User)
                 .map_err(|_| decryption_error())?;
+            if name.len() > 4096 || folders.len() >= MAX_ITEMS || folder_names.contains_key(&id) {
+                return Err(invalid_response());
+            }
+            folders.push(FolderMetadata {
+                id: id.to_string(),
+                name: name.clone(),
+            });
             folder_names.insert(id, name);
         }
         let mut next_encrypted = Vec::with_capacity(ciphers.len());
@@ -705,6 +723,7 @@ impl Vaultwarden {
         self.client = next_client;
         self.organizations = organizations;
         self.collections = collections;
+        self.folders = folders;
         self.encrypted = next_encrypted;
         self.items = next_items;
         self.skipped_items = skipped_items;
@@ -772,6 +791,7 @@ impl Vaultwarden {
         self.encrypted.clear();
         self.organizations.clear();
         self.collections.clear();
+        self.folders.clear();
         self.user_key.take();
     }
 }
@@ -812,6 +832,7 @@ fn project_metadata(view: &CipherView, kind: &'static str) -> Result<ItemMetadat
         kind,
         favorite: view.favorite,
         folder: "Personal vault".into(),
+        folder_id: view.folder_id.map(|id| id.to_string()),
         color: "violet",
         initials: view
             .name

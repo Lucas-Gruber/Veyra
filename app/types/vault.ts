@@ -8,6 +8,7 @@ export interface VaultItem {
   kind: ItemKind
   favorite: boolean
   folder: string
+  folderId?: string | null
   color: string
   initials: string
   updated: string
@@ -30,9 +31,10 @@ export interface SessionStatus {
   generation: number
   lastSync: string | null
 }
+export interface VaultFolder { id: string; name: string }
 export interface VaultOrganization { id: string; name: string }
 export interface VaultCollection { id: string; organizationId: string; name: string; readOnly: boolean; hidePasswords: boolean }
-export interface VaultSnapshot { session: SessionStatus; items: VaultItem[]; unsupportedItems: number; organizations: VaultOrganization[]; collections: VaultCollection[]; needsSync: boolean }
+export interface VaultSnapshot { session: SessionStatus; items: VaultItem[]; unsupportedItems: number; organizations: VaultOrganization[]; collections: VaultCollection[]; folders: VaultFolder[]; needsSync: boolean }
 export type CardField = 'cardholderName' | 'number' | 'code' | 'expMonth' | 'expYear' | 'brand'
 export type IdentityField = 'title' | 'firstName' | 'middleName' | 'lastName' | 'address1' | 'address2' | 'address3' | 'city' | 'state' | 'postalCode' | 'country' | 'company' | 'email' | 'phone' | 'ssn' | 'username' | 'passportNumber' | 'licenseNumber'
 export interface ItemDraft {

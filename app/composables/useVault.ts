@@ -1,6 +1,6 @@
 import { isTauri } from '@tauri-apps/api/core'
 import { demoItems } from '~/data/demo'
-import type { CopyField, LoginOutcome, LoginRequest, SessionStatus, VaultSnapshot, VaultItem, VaultOrganization, VaultCollection, WriteOutcome } from '~/types/vault'
+import type { CopyField, LoginOutcome, LoginRequest, SessionStatus, VaultSnapshot, VaultItem, VaultOrganization, VaultCollection, VaultFolder, WriteOutcome } from '~/types/vault'
 
 export function useVault() {
   const session = useState<SessionStatus>('vault:session', () => ({ locked: true, mode: 'disconnected', generation: 0, lastSync: null }))
@@ -10,6 +10,7 @@ export function useVault() {
   const items = useState<VaultItem[]>('vault:items', () => [])
   const organizations = useState<VaultOrganization[]>('vault:organizations', () => [])
   const collections = useState<VaultCollection[]>('vault:collections', () => [])
+  const folders = useState<VaultFolder[]>('vault:folders', () => [])
   const recent = useState<string[]>('vault:recent', () => [])
   const feedback = useState('vault:feedback', () => '')
   const syncing = useState('vault:syncing', () => false)
@@ -41,6 +42,7 @@ export function useVault() {
       items.value = []
       organizations.value = []
       collections.value = []
+      folders.value = []
       recent.value = []
       unsupportedItems.value = 0
       needsSync.value = false
@@ -54,6 +56,7 @@ export function useVault() {
     items.value = snapshot.items
     organizations.value = snapshot.organizations || []
     collections.value = snapshot.collections || []
+    folders.value = snapshot.folders || []
     needsSync.value = snapshot.needsSync || false
     unsupportedItems.value = snapshot.unsupportedItems || 0
   }
@@ -102,6 +105,7 @@ export function useVault() {
     items.value = []
     organizations.value = []
     collections.value = []
+    folders.value = []
     recent.value = []
     unsupportedItems.value = 0
     needsSync.value = false
@@ -192,5 +196,5 @@ export function useVault() {
     return false
   }
   async function hideQuickAccess() { if (desktop.value) await invoke('hide_quick_access') }
-  return { session, locked, demo, connected, items, organizations, collections, recent, feedback, syncing, mutating, needsSync, unsupportedItems, desktop, applySession, acceptWrite, changeItem, sessionChanged, initialize, login, unlock, lock, sync, copy, reveal, toggleFavorite, openWebsite, notify, showQuickAccess, hideQuickAccess, errorMessage }
+  return { session, locked, demo, connected, items, organizations, collections, folders, recent, feedback, syncing, mutating, needsSync, unsupportedItems, desktop, applySession, acceptWrite, changeItem, sessionChanged, initialize, login, unlock, lock, sync, copy, reveal, toggleFavorite, openWebsite, notify, showQuickAccess, hideQuickAccess, errorMessage }
 }

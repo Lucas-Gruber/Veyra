@@ -1,7 +1,7 @@
 //! In-memory session authority. Lock invalidates every outstanding operation.
 
 use crate::vaultwarden::{
-    CollectionMetadata, ItemMetadata, OrganizationMetadata, VaultError, Vaultwarden,
+    CollectionMetadata, FolderMetadata, ItemMetadata, OrganizationMetadata, VaultError, Vaultwarden,
 };
 use serde::Serialize;
 use std::sync::{Arc, Mutex};
@@ -44,6 +44,7 @@ pub struct SessionInner {
     pub unsupported_items: usize,
     pub organizations: Vec<OrganizationMetadata>,
     pub collections: Vec<CollectionMetadata>,
+    pub folders: Vec<FolderMetadata>,
     pub needs_sync: bool,
     pub cancellation: CancellationToken,
 }
@@ -61,6 +62,7 @@ impl SessionInner {
         self.metadata.clear();
         self.organizations.clear();
         self.collections.clear();
+        self.folders.clear();
         self.unsupported_items = 0;
         self.needs_sync = false;
         self.vault.take()
@@ -94,6 +96,7 @@ impl Default for Session {
             unsupported_items: 0,
             organizations: vec![],
             collections: vec![],
+            folders: vec![],
             needs_sync: false,
             cancellation: CancellationToken::new(),
         }))
@@ -108,6 +111,7 @@ pub struct MetadataSnapshot {
     pub unsupported_items: usize,
     pub organizations: Vec<OrganizationMetadata>,
     pub collections: Vec<CollectionMetadata>,
+    pub folders: Vec<FolderMetadata>,
     pub needs_sync: bool,
 }
 
@@ -125,6 +129,11 @@ impl SessionInner {
                 vec![]
             } else {
                 self.collections.clone()
+            },
+            folders: if self.status.locked {
+                vec![]
+            } else {
+                self.folders.clone()
             },
             items: if self.status.locked {
                 vec![]
@@ -183,6 +192,7 @@ mod tests {
             kind: "login",
             favorite: false,
             folder: "Test".into(),
+            folder_id: None,
             color: "violet",
             initials: "SI".into(),
             updated: "Today".into(),
@@ -206,6 +216,10 @@ mod tests {
         state.metadata.push(metadata());
         state.unsupported_items = 9;
         state.needs_sync = true;
+        state.folders.push(FolderMetadata {
+            id: "synthetic-folder".into(),
+            name: "Empty/Synthetic folder".into(),
+        });
         state.organizations.push(OrganizationMetadata {
             id: "org-fixture".into(),
             name: "Synthetic organization".into(),
@@ -221,6 +235,7 @@ mod tests {
         assert!(snapshot.items.is_empty());
         assert!(snapshot.organizations.is_empty());
         assert!(snapshot.collections.is_empty());
+        assert!(snapshot.folders.is_empty());
         assert_eq!(snapshot.unsupported_items, 0);
         assert!(snapshot.session.locked);
         assert!(!snapshot.needs_sync);

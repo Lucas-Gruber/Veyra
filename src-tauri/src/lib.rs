@@ -1,5 +1,6 @@
 mod clipboard;
 mod demo;
+mod quick_launch;
 mod session;
 mod updates;
 mod urls;
@@ -116,6 +117,7 @@ async fn login_vault(
             state.metadata = vault.metadata();
             state.organizations = vault.organizations.clone();
             state.collections = vault.collections.clone();
+            state.folders = vault.folders.clone();
             state.unsupported_items = vault.skipped_items;
             state.vault = Some(Arc::new(AsyncMutex::new(vault)));
             state.status.locked = false;
@@ -206,7 +208,7 @@ async fn sync_vault(app: tauri::AppHandle) -> Result<MetadataSnapshot, VaultErro
         result = async {
             let mut vault = vault.lock_owned().await;
             vault.sync().await?;
-            Ok::<_, VaultError>((vault.metadata(), vault.skipped_items, vault.organizations.clone(), vault.collections.clone(), vault))
+            Ok::<_, VaultError>((vault.metadata(), vault.skipped_items, vault.organizations.clone(), vault.collections.clone(), vault.folders.clone(), vault))
         } => result,
     };
     let session = app.state::<Session>();
@@ -214,12 +216,13 @@ async fn sync_vault(app: tauri::AppHandle) -> Result<MetadataSnapshot, VaultErro
     state.require_generation(generation)?;
     state.status.require_unlocked()?;
     match result {
-        Ok((items, unsupported, organizations, collections, _vault_guard)) => {
+        Ok((items, unsupported, organizations, collections, folders, _vault_guard)) => {
             // Retain the vault mutex until this snapshot is committed. A newer
             // operation must not publish and then be overwritten by this one.
             state.metadata = items;
             state.organizations = organizations;
             state.collections = collections;
+            state.folders = folders;
             state.needs_sync = false;
             state.unsupported_items = unsupported;
             state.status.last_sync = Some(chrono::Utc::now().to_rfc3339());
@@ -319,7 +322,7 @@ async fn write_item(
     }
     // Keep the owned guard through the session commit so concurrent sync/write
     // completions cannot publish snapshots or needs_sync in the wrong order.
-    let (result, items, unsupported, organizations, collections, needs_sync, _vault_guard) = tokio::select! {
+    let (result, items, unsupported, organizations, collections, folders, needs_sync, _vault_guard) = tokio::select! {
         biased;
         _ = cancellation.cancelled() => return Err(error("cancelled", "The session changed. The write may have reached the server; inspect the vault after signing in again.")),
         result = async {
@@ -327,7 +330,7 @@ async fn write_item(
             let result = if let Some(draft) = draft { vault.save_item(draft).await }
                 else if let Some(change) = change { vault.change_item(change).await }
                 else { Err(unavailable()) };
-            (result, vault.metadata(), vault.skipped_items, vault.organizations.clone(), vault.collections.clone(), vault.needs_sync(), vault)
+            (result, vault.metadata(), vault.skipped_items, vault.organizations.clone(), vault.collections.clone(), vault.folders.clone(), vault.needs_sync(), vault)
         } => result,
     };
     let result = match result {
@@ -346,6 +349,7 @@ async fn write_item(
     state.unsupported_items = unsupported;
     state.organizations = organizations;
     state.collections = collections;
+    state.folders = folders;
     let (item_id, refresh_pending) = match result {
         Ok(value) => value,
         Err(failure) => {
@@ -660,11 +664,29 @@ async fn open_website(app: tauri::AppHandle, url: String) -> Result<(), VaultErr
 }
 
 pub fn run() {
+    let startup = match quick_launch::prepare() {
+        Ok(Some(startup)) => startup,
+        Ok(None) => return,
+        Err(message) => {
+            eprintln!("{message}");
+            std::process::exit(2);
+        }
+    };
+    let mut context = tauri::generate_context!();
+    // Build the main window hidden so a cold Quick Access launch never flashes
+    // the full vault. The selected window is shown after setup completes.
+    for window in &mut context.config_mut().app.windows {
+        window.visible = false;
+    }
     let result = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(Session::default())
         .manage(ClipboardService::default())
         .manage(updates::UpdateService::default())
+        .setup(move |app| {
+            startup.attach(app.handle());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             updates::app_info,
             updates::check_for_updates,
@@ -686,7 +708,7 @@ pub fn run() {
             open_website,
             open_main_item
         ])
-        .run(tauri::generate_context!());
+        .run(context);
     if result.is_err() {
         eprintln!("Veyra could not initialize the desktop runtime.");
         std::process::exit(1);
