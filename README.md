@@ -22,7 +22,7 @@ Connect using your HTTPS server address in the desktop application. Passwords ar
 
 Settings → About shows the actual native version, release channel, platform, architecture and license. Update checks contact the public GitHub release API when due at startup and daily while open; they can be disabled or triggered manually. Stable installations ignore prereleases. Browser preview performs no update requests. Checks do not install updates.
 
-Use `pnpm release:version prerelease --dry-run`, `pnpm release:version prerelease` and `pnpm version:check` to keep npm, Cargo, Tauri and AppStream consistent; see [versioning](docs/versioning.md). The published preview is **[0.1.0-alpha.3](https://github.com/Lucas-Gruber/Veyra/releases/tag/v0.1.0-alpha.3)**, with a Linux x86_64 Flatpak, dependency source archive and checksums. A tag starts validation; publication remains gated.
+Use `pnpm release:version prerelease --dry-run`, `pnpm release:version prerelease` and `pnpm version:check` to keep npm, Cargo, Tauri and AppStream consistent; see [versioning](docs/versioning.md). The published preview is **[0.1.0-alpha.3](https://github.com/Lucas-Gruber/Veyra/releases/tag/v0.1.0-alpha.3)**, with a Linux x86_64 Flatpak, dependency source archive and checksums. The working version is **0.1.0-alpha.4**, an unreleased local candidate. A tag starts validation; publication remains gated.
 
 ## Compatibility and validation
 
