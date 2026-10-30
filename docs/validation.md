@@ -6,7 +6,7 @@ explicit contents, scalable typography and desktop integration. Local checks:
 | Check | Result |
 | --- | --- |
 | `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm generate` | Passed; 40 frontend unit tests |
-| Playwright complete suite | 16 passed; explicitly synthetic IPC/browser contracts |
+| Playwright complete suite | 17 passed; explicitly synthetic IPC/browser contracts, including clearing hidden Quick Access login fields |
 | Cargo formatting, Clippy all-targets with warnings denied, unit tests | Passed; 26 tests, six live tests separately ignored in unit runs |
 | Dedicated Vaultwarden 1.37.4 at committed digest | Six live tests passed: personal KDFs, 2FA, org keys/collections, supported entry CRUD, conflict/uncertain-write recovery |
 | Audit-exception regression tests | 17 passed; changed application sources remain outside the Alpha3 exception |
