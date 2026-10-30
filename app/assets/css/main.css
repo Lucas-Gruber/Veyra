@@ -339,3 +339,25 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .collection-filters { display: flex; gap: 8px; padding: 0 32px 14px; flex-wrap: wrap; }
 .collection-filters button { background: var(--surface); border: 1px solid var(--border-strong); color: var(--muted); padding: 7px 10px; border-radius: 6px; font-size: .8125rem; }
 .collection-filters button[aria-pressed=true] { background: var(--accent-bg); color: var(--accent); }
+
+.editor-backdrop { z-index: 70; }
+.item-editor { width: 620px; max-width: 100%; max-height: calc(100dvh - 40px); overflow: auto; background: var(--panel); border: 1px solid var(--border-strong); border-radius: 14px; padding: 24px; box-shadow: 0 24px 80px #0006; }
+.item-editor header { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 22px; }
+.item-editor h2 { margin: 0; font-size: 1.4rem; font-weight: 550; }
+.item-editor fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.item-editor textarea { width: 100%; font: inherit; padding: 10px 12px; resize: vertical; background: var(--sidebar); color: var(--text); border: 1px solid var(--border-strong); border-radius: 7px; }
+.item-editor textarea:focus { outline: 1px solid var(--accent); }
+.item-editor footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+.editor-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 0 14px; }
+.editor-collections { border: 1px solid var(--border-strong); padding: 12px; border-radius: 7px; margin-bottom: 16px; }
+.editor-collections p { font-size: .8125rem; color: var(--muted); margin: 0 0 10px; }
+.editor-collections label,.editor-favorite { display: flex; align-items: center; gap: 8px; font-size: .875rem; padding: 5px 0; }
+.detail-edit-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0; }
+.trash-confirmation { border: 1px solid var(--border-strong); background: var(--accent-bg); padding: 12px; margin: 16px 0; border-radius: 8px; font-size: .875rem; }
+.trash-confirmation button { margin: 8px 5px 0 0; }
+.item-contents button { margin: 4px 0 12px; }
+.item-contents dl { margin: 10px 0; }
+.item-contents dt { color: var(--muted); font-size: .8125rem; margin-top: 15px; }
+.item-contents dd { color: var(--text); font-size: .875rem; margin: 5px 0 0; overflow-wrap: anywhere; }
+.revealed-notes { white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 560px) { .editor-fields { grid-template-columns: 1fr; } }

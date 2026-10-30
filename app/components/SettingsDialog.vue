@@ -45,11 +45,11 @@ function onKey(event: KeyboardEvent) {
           <p class="setting-hint">System-wide shortcuts and shortcut customization require portal integration in a later milestone. Ctrl U keeps its text editing behavior in the search field; copy username from the action menu instead.</p>
         </template>
         <template v-else-if="tab === 'Security'">
-          <p class="eyebrow">CLEAR BOUNDARIES</p><h3>Built with care.</h3><p class="muted">{{ vault.connected.value ? 'Connected vault access is read-only and held in memory.' : 'Explore samples, or connect securely in the desktop application.' }}</p>
+          <p class="eyebrow">CLEAR BOUNDARIES</p><h3>Built with care.</h3><p class="muted">{{ vault.connected.value ? 'Vault sessions and keys stay in memory. Changes are encrypted in Rust and sent to Vaultwarden.' : 'Explore samples, or connect securely in the desktop application.' }}</p>
           <div class="setting-row"><span>Clipboard clearing<small>Desktop · best effort, only if unchanged</small></span><span class="status-chip">30 seconds</span></div>
           <div class="setting-row"><span>Vault data<small>{{ vault.demo.value ? 'Synthetic metadata, held in memory' : 'Decrypted metadata in memory while unlocked' }}</small></span><ShieldCheck :size="19"/></div>
           <div class="setting-note"><Info :size="20"/><span>{{ vault.desktop.value ? 'Clipboard history managers may retain copied data. Veyra cannot guarantee erasure outside the application.' : 'Browser demo: clipboard clearing is unavailable. Only synthetic sample values can be copied.' }}</span></div>
-          <p class="setting-hint">This is an integration preview pending independent security review. Locking signs out and drops in-memory keys. Automatic locking, offline cache and write operations are not available yet.</p>
+          <p class="setting-hint">This is an integration preview pending independent security review. Locking signs out and drops in-memory keys. Automatic locking and offline cache are not available yet.</p>
         </template>
         <AboutPanel v-else/>
       </div>

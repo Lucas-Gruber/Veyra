@@ -65,7 +65,7 @@ async function exploreDemo() { clearForm(); await vault.unlock() }
       <UButton type="submit" class="primary-button unlock-button connect-button" size="lg" :disabled="busy"><LoaderCircle v-if="busy" :size="16" class="spin"/><span>{{ busy ? 'Connecting securely…' : providers.length ? 'Verify & unlock' : 'Connect & unlock' }}</span><ArrowRight v-if="!busy" :size="16"/></UButton>
       <button v-if="providers.length" type="button" class="text-button" :disabled="busy" @click="providers = []; clearSensitive(); error = ''">Back to sign in</button>
       <p class="connection-security"><ShieldCheck :size="13"/>Vault keys and sessions stay in Rust. Sign-in details are not saved.</p>
-      <p class="connection-limit">Read-only integration preview. Locking signs you out; offline unlock is not available. Independent security review is pending.</p>
+      <p class="connection-limit">Integration preview. Locking signs you out; offline unlock is not available. Independent security review is pending.</p>
     </form>
     <div v-else class="browser-connect-notice"><Monitor :size="22"/><strong>Connect in the desktop application</strong><p>Vaultwarden authentication and decryption run in Rust. This browser preview can only show synthetic sample data.</p></div>
     <div class="demo-entry"><span>{{ vault.desktop.value ? 'Just looking around?' : 'Explore the interface' }}</span><button class="text-button" :disabled="busy" @click="exploreDemo">Explore demo vault <ArrowRight :size="13"/></button></div>

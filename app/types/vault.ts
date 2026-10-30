@@ -18,6 +18,10 @@ export interface VaultItem {
   readOnly?: boolean
   organizationId?: string | null
   collectionIds?: string[]
+  revision?: string
+  deleted?: boolean
+  canDelete?: boolean
+  canRestore?: boolean
 }
 export type CopyField = 'username' | 'password' | 'totp'
 export interface SessionStatus {
@@ -28,7 +32,17 @@ export interface SessionStatus {
 }
 export interface VaultOrganization { id: string; name: string }
 export interface VaultCollection { id: string; organizationId: string; name: string; readOnly: boolean; hidePasswords: boolean }
-export interface VaultSnapshot { session: SessionStatus; items: VaultItem[]; unsupportedItems: number; organizations: VaultOrganization[]; collections: VaultCollection[] }
+export interface VaultSnapshot { session: SessionStatus; items: VaultItem[]; unsupportedItems: number; organizations: VaultOrganization[]; collections: VaultCollection[]; needsSync: boolean }
+export type CardField = 'cardholderName' | 'number' | 'code' | 'expMonth' | 'expYear' | 'brand'
+export type IdentityField = 'title' | 'firstName' | 'middleName' | 'lastName' | 'address1' | 'address2' | 'address3' | 'city' | 'state' | 'postalCode' | 'country' | 'company' | 'email' | 'phone' | 'ssn' | 'username' | 'passportNumber' | 'licenseNumber'
+export interface ItemDraft {
+  id: string | null; revision: string | null; organizationId: string | null; collectionIds: string[]
+  kind: ItemKind; name: string; favorite: boolean; notes: string; username: string; password: string; totp: string; uri: string
+  card: Partial<Record<CardField, string | null>> | null
+  identity: Partial<Record<IdentityField, string | null>> | null
+}
+export interface EditableItem { draft: ItemDraft; generation: number }
+export interface WriteOutcome { itemId: string; refreshPending: boolean; snapshot: VaultSnapshot }
 export type TwoFactorProvider = 'totp' | 'email'
 export interface LoginRequest {
   serverUrl: string

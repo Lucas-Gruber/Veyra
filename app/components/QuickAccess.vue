@@ -14,7 +14,7 @@ const dialog = ref<HTMLElement>()
 let previousFocus: HTMLElement | null = null
 let unlistenFocus: (() => void) | undefined
 let unlistenBlur: (() => void) | undefined
-const results = computed(() => vault.locked.value ? [] : searchItems(vault.items.value, query.value).slice(0, 8))
+const results = computed(() => vault.locked.value ? [] : searchItems(vault.items.value.filter(item => !item.deleted), query.value).slice(0, 8))
 const current = computed(() => results.value[selected.value])
 watch(query, () => { selected.value = 0; actions.value = false })
 watch(vault.locked, value => {
@@ -40,7 +40,7 @@ async function close() {
 }
 async function run(action: string, item: VaultItem | undefined = current.value) {
   if (!item) return
-  if (item.kind !== 'login' && ['username', 'password', 'totp', 'website', 'autofill'].includes(action)) { vault.notify('This read-only version supports credential actions for login items only.'); return }
+  if (item.kind !== 'login' && ['username', 'password', 'totp', 'website', 'autofill'].includes(action)) { vault.notify('Credential actions are available for login items. Open the item to view its contents.'); return }
   if (action === 'favorite') { vault.toggleFavorite(item.id); return }
   if (action === 'detail') {
     try {
@@ -128,7 +128,7 @@ const actionList = [
       <template v-if="vault.locked.value"><button class="icon-button quick-close" aria-label="Close Quick Access" @click="close"><X :size="18"/></button><LockedVault compact/></template>
       <template v-else>
         <div class="quick-search"><Search :size="23" :stroke-width="1.7"/><input ref="searchInput" v-model="query" placeholder="Where do you want to go?" aria-label="Search vault" autocomplete="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-controls="quick-results" :aria-expanded="results.length > 0" :aria-activedescendant="current ? `quick-${current.id}` : undefined"><kbd @click="close">esc</kbd></div>
-        <div class="quick-context"><span>{{ query ? `${results.length} MATCH${results.length === 1 ? '' : 'ES'}` : 'YOUR EVERYDAY ESSENTIALS' }}</span><span class="demo-dot">{{ vault.demo.value ? 'DEMO VAULT' : 'CONNECTED · READ-ONLY' }}</span></div>
+        <div class="quick-context"><span>{{ query ? `${results.length} MATCH${results.length === 1 ? '' : 'ES'}` : 'YOUR EVERYDAY ESSENTIALS' }}</span><span class="demo-dot">{{ vault.demo.value ? 'DEMO VAULT' : 'CONNECTED' }}</span></div>
         <div id="quick-results" class="quick-results" role="listbox" aria-label="Matching items">
           <button v-for="(item, index) in results" :id="`quick-${item.id}`" :key="item.id" :class="['quick-result', { selected: selected === index }]" role="option" :aria-selected="selected === index" @mousemove="selected = index" @click="run(prefs.defaultAction, item)">
             <ItemIcon :item="item"/><span class="quick-result-text"><strong><template v-for="(segment, i) in highlightSegments(item.name, query)" :key="i"><mark v-if="segment.match">{{ segment.text }}</mark><template v-else>{{ segment.text }}</template></template></strong><small>{{ item.username }}</small></span><span class="quick-domain">{{ item.domain }}</span><CornerDownLeft v-if="selected === index" :size="15" class="quick-enter"/>

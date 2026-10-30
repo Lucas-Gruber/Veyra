@@ -1,6 +1,6 @@
 import { isTauri } from '@tauri-apps/api/core'
 import { demoItems } from '~/data/demo'
-import type { CopyField, LoginOutcome, LoginRequest, SessionStatus, VaultSnapshot, VaultItem, VaultOrganization, VaultCollection } from '~/types/vault'
+import type { CopyField, LoginOutcome, LoginRequest, SessionStatus, VaultSnapshot, VaultItem, VaultOrganization, VaultCollection, WriteOutcome } from '~/types/vault'
 
 export function useVault() {
   const session = useState<SessionStatus>('vault:session', () => ({ locked: true, mode: 'disconnected', generation: 0, lastSync: null }))
@@ -13,6 +13,8 @@ export function useVault() {
   const recent = useState<string[]>('vault:recent', () => [])
   const feedback = useState('vault:feedback', () => '')
   const syncing = useState('vault:syncing', () => false)
+  const mutating = useState('vault:mutating', () => false)
+  const needsSync = useState('vault:needs-sync', () => false)
   const unsupportedItems = useState('vault:unsupported-items', () => 0)
   const desktop = computed(() => import.meta.client && isTauri())
   const sessionEpoch = useState('vault:session-epoch', () => 0)
@@ -41,6 +43,7 @@ export function useVault() {
       collections.value = []
       recent.value = []
       unsupportedItems.value = 0
+      needsSync.value = false
     }
     if (!status.locked && status.mode === 'demo' && !items.value.length) items.value = demoItems.map(item => ({ ...item, tags: [...item.tags] }))
     return true
@@ -51,6 +54,7 @@ export function useVault() {
     items.value = snapshot.items
     organizations.value = snapshot.organizations || []
     collections.value = snapshot.collections || []
+    needsSync.value = snapshot.needsSync || false
     unsupportedItems.value = snapshot.unsupportedItems || 0
   }
   async function refreshMetadata() {
@@ -100,6 +104,7 @@ export function useVault() {
     collections.value = []
     recent.value = []
     unsupportedItems.value = 0
+    needsSync.value = false
     session.value = { ...session.value, locked: true, mode: 'disconnected', lastSync: null }
     feedback.value = ''
     try {
@@ -112,16 +117,33 @@ export function useVault() {
     const epoch = sessionEpoch.value
     try {
       const snapshot = await invoke<VaultSnapshot>('sync_vault')
-      if (epoch === sessionEpoch.value) { applySnapshot(snapshot); notify('Vault synchronized. Read-only access.') }
+      if (epoch === sessionEpoch.value) { applySnapshot(snapshot); notify('Vault synchronized.') }
     } catch (error) { notify(errorMessage(error, 'Could not synchronize. Existing items remain available.')) }
     finally { syncing.value = false }
   }
   function markUsed(id: string) { recent.value = [id, ...recent.value.filter(value => value !== id)].slice(0, 8) }
-  function toggleFavorite(id: string) {
+  function acceptWrite(outcome: WriteOutcome) {
+    if (locked.value || outcome.snapshot.session.generation !== session.value.generation) return false
+    applySnapshot(outcome.snapshot)
+    notify(outcome.refreshPending ? 'Change saved. Refresh failed; synchronize before making another change.' : 'Change saved to Vaultwarden.')
+    return true
+  }
+  async function changeItem(item: VaultItem, action: 'favorite' | 'trash' | 'restore', favorite?: boolean) {
+    if (!connected.value || mutating.value || needsSync.value) return false
+    mutating.value = true
+    const generation = session.value.generation
+    try {
+      const outcome = await invoke<WriteOutcome>('change_item', { expectedGeneration: generation, request: { id: item.id, revision: item.revision, action, favorite } })
+      return acceptWrite(outcome)
+    } catch (error) { notify(errorMessage(error, 'Could not save this change.')); return false }
+    finally { mutating.value = false }
+  }
+  async function toggleFavorite(id: string) {
     if (locked.value) return
-    if (!demo.value) { notify('This connection is read-only. Edit favorites in Vaultwarden.'); return }
     const item = items.value.find(value => value.id === id)
-    if (item) item.favorite = !item.favorite
+    if (!item) return
+    if (demo.value) item.favorite = !item.favorite
+    else await changeItem(item, 'favorite', !item.favorite)
   }
   async function copy(itemId: string, field: CopyField): Promise<boolean> {
     if (locked.value || !items.value.some(item => item.id === itemId)) return false
@@ -170,5 +192,5 @@ export function useVault() {
     return false
   }
   async function hideQuickAccess() { if (desktop.value) await invoke('hide_quick_access') }
-  return { session, locked, demo, connected, items, organizations, collections, recent, feedback, syncing, unsupportedItems, desktop, applySession, sessionChanged, initialize, login, unlock, lock, sync, copy, reveal, toggleFavorite, openWebsite, notify, showQuickAccess, hideQuickAccess, errorMessage }
+  return { session, locked, demo, connected, items, organizations, collections, recent, feedback, syncing, mutating, needsSync, unsupportedItems, desktop, applySession, acceptWrite, changeItem, sessionChanged, initialize, login, unlock, lock, sync, copy, reveal, toggleFavorite, openWebsite, notify, showQuickAccess, hideQuickAccess, errorMessage }
 }
