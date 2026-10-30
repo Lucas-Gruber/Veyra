@@ -6,6 +6,12 @@ packages install their launcher/icon. For an unpackaged local build, register it
 once with `pnpm desktop:integrate /absolute/path/to/veyra`; rerun after moving the
 binary. A debug binary still needs the Nuxt development server running. This
 installs only the Veyra launcher and icon under the user's XDG data directory.
+Paths containing `%`, `=` or control characters are rejected before writing a
+launcher because desktop launchers cannot reliably execute them. Existing
+symlink targets are also rejected. The launcher helper can be verified without
+opening Veyra or changing the user's launcher with
+`python3 -m unittest discover -s tests/desktop -v`; its launch test uses a harmless
+stub and a temporary XDG data directory.
 
 The native main and Quick Access WebViews share one Rust session and metadata snapshot. Tauri capabilities allow only scoped local commands and session event listeners; there is no shell/filesystem/generic clipboard/opener IPC exposed. Website opening is a native operation restricted to a known item's HTTPS URL and an active session.
 
