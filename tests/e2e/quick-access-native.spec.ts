@@ -1,0 +1,36 @@
+import { expect, test } from '@playwright/test'
+import { installConnectedVault } from './fixtures/connected-vault'
+
+test('reused native Quick Access clears unsubmitted sign-in fields on blur and close', async ({ page }) => {
+  // Synthetic native IPC only: the fake hide command deliberately leaves the
+  // page mounted so these assertions inspect the reused window's actual fields.
+  await installConnectedVault(page)
+  await page.goto('/?window=quick')
+  const dialog = page.getByRole('dialog', { name: 'Quick Access', exact: true })
+  await expect(dialog.getByRole('option')).toHaveCount(4)
+  await expect.poll(() => page.evaluate(() => window.__VEYRA_UI_FIXTURE__.calls.some(call => call.command === 'plugin:event|listen' && call.args?.event === 'quick-access:blur'))).toBe(true)
+  await page.keyboard.press('Control+l')
+  const server = dialog.getByLabel('Server address', { exact: true })
+  const email = dialog.getByLabel('Email address', { exact: true })
+  const password = dialog.getByLabel('Master password', { exact: true })
+  await expect(password).toBeVisible()
+  await server.fill('https://synthetic-vault.example.test')
+  await email.fill('synthetic-unsent@example.test')
+  await password.fill('synthetic-unsent-master-password')
+  await page.evaluate(() => window.__VEYRA_UI_FIXTURE__.emitQuickBlur())
+  await expect(server).toHaveValue('')
+  await expect(email).toHaveValue('')
+  await expect(password).toHaveValue('')
+  await server.fill('https://another-synthetic-vault.example.test')
+  await email.fill('another-synthetic-unsent@example.test')
+  await password.fill('another-synthetic-unsent-master-password')
+  await dialog.getByRole('button', { name: 'Close Quick Access', exact: true }).click()
+  await expect.poll(() => page.evaluate(() => window.__VEYRA_UI_FIXTURE__.calls.filter(call => call.command === 'hide_quick_access').length)).toBe(1)
+  await expect(server).toHaveValue('')
+  await expect(email).toHaveValue('')
+  await expect(password).toHaveValue('')
+  const loginCalls = await page.evaluate(() => window.__VEYRA_UI_FIXTURE__.calls.filter(call => call.command === 'login_vault'))
+  expect(loginCalls).toEqual([])
+  const storage = await page.evaluate(() => JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage } }))
+  expect(storage).not.toMatch(/synthetic|example\.test|master-password/)
+})

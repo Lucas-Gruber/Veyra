@@ -7,6 +7,7 @@ interface FixtureControls {
   delayNextEditor: boolean
   pendingEditor: boolean
   releaseEditor: () => void
+  emitQuickBlur: () => void
 }
 
 declare global {
@@ -42,7 +43,11 @@ export async function installConnectedVault(page: Page) {
     const drafts: Record<string, ItemDraft> = Object.fromEntries(items.map(item => [item.id, { id: item.id, revision: item.revision || null, organizationId: item.organizationId || null, collectionIds: item.collectionIds || [], kind: item.kind, name: item.name, favorite: item.favorite, notes: 'Synthetic editor note', username: item.username, password: 'synthetic-editor-password', totp: '', uri: item.url, card: {}, identity: {} }]))
     const status = () => ({ locked, generation, mode: locked ? 'disconnected' : 'connected', lastSync: locked ? null : '2026-10-29T00:00:00Z' })
     const snapshot = () => structuredClone({ session: status(), items: locked ? [] : items, organizations: locked ? [] : organizations, collections: locked ? [] : collections, unsupportedItems: 0, needsSync: false })
-    const controls: FixtureControls = { calls: [], failNextSave: false, delayNextEditor: false, pendingEditor: false, releaseEditor() { releaseEditor?.(); releaseEditor = undefined } }
+    const controls: FixtureControls = {
+      calls: [], failNextSave: false, delayNextEditor: false, pendingEditor: false,
+      releaseEditor() { releaseEditor?.(); releaseEditor = undefined },
+      emitQuickBlur() { for (const id of listeners.get('quick-access:blur') || []) callbacks.get(id)?.({ payload: null }) },
+    }
     Object.assign(window, {
       __VEYRA_UI_FIXTURE__: controls,
       isTauri: true,
@@ -58,6 +63,7 @@ export async function installConnectedVault(page: Page) {
             return args?.handler
           }
           if (command === 'plugin:event|unlisten') return
+          if (command === 'hide_quick_access') return
           if (command === 'session_status') return status()
           if (command === 'list_metadata' || command === 'sync_vault') return snapshot()
           if (command === 'lock_vault') {
