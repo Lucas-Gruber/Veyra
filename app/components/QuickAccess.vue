@@ -11,6 +11,7 @@ const selected = ref(0)
 const actions = ref(false)
 const searchInput = ref<HTMLInputElement>()
 const dialog = ref<HTMLElement>()
+const loginForm = ref<{ clear: () => void }>()
 let previousFocus: HTMLElement | null = null
 let unlistenFocus: (() => void) | undefined
 let unlistenBlur: (() => void) | undefined
@@ -30,11 +31,13 @@ onMounted(async () => {
   if (vault.desktop.value) {
     const { listen } = await import('@tauri-apps/api/event')
     unlistenFocus = await listen('quick-access:focus', () => nextTick(() => { if (vault.locked.value) dialog.value?.querySelector<HTMLInputElement>('input')?.focus(); else searchInput.value?.focus() }))
-    unlistenBlur = await listen('quick-access:blur', () => { query.value = ''; actions.value = false; selected.value = 0 })
+    unlistenBlur = await listen('quick-access:blur', reset)
   }
 })
 onBeforeUnmount(() => { unlistenFocus?.(); unlistenBlur?.(); previousFocus?.focus() })
+function reset() { query.value = ''; actions.value = false; selected.value = 0; loginForm.value?.clear() }
 async function close() {
+  reset()
   if (props.standalone) await vault.hideQuickAccess()
   else emit('close')
 }
@@ -125,7 +128,7 @@ const actionList = [
 <template>
   <div :class="standalone ? 'quick-standalone' : 'quick-backdrop'" @click.self="close">
     <section ref="dialog" class="quick-access" role="dialog" aria-modal="true" aria-label="Quick Access" @keydown="onKey">
-      <template v-if="vault.locked.value"><button class="icon-button quick-close" aria-label="Close Quick Access" @click="close"><X :size="18"/></button><LockedVault compact/></template>
+      <template v-if="vault.locked.value"><button class="icon-button quick-close" aria-label="Close Quick Access" @click="close"><X :size="18"/></button><LockedVault ref="loginForm" compact/></template>
       <template v-else>
         <div class="quick-search"><Search :size="23" :stroke-width="1.7"/><input ref="searchInput" v-model="query" placeholder="Where do you want to go?" aria-label="Search vault" autocomplete="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-controls="quick-results" :aria-expanded="results.length > 0" :aria-activedescendant="current ? `quick-${current.id}` : undefined"><kbd @click="close">esc</kbd></div>
         <div class="quick-context"><span>{{ query ? `${results.length} MATCH${results.length === 1 ? '' : 'ES'}` : 'YOUR EVERYDAY ESSENTIALS' }}</span><span class="demo-dot">{{ vault.demo.value ? 'DEMO VAULT' : 'CONNECTED' }}</span></div>

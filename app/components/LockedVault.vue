@@ -15,6 +15,7 @@ const passwordInput = ref<HTMLInputElement>()
 let submittedGeneration = 0
 function clearSensitive() { masterPassword.value = ''; twoFactorCode.value = '' }
 function clearForm() { clearSensitive(); serverUrl.value = ''; email.value = ''; providers.value = []; error.value = '' }
+defineExpose({ clear: () => { submittedGeneration++; clearForm() } })
 watch(vault.locked, () => { submittedGeneration++; clearForm() })
 onBeforeUnmount(() => { submittedGeneration++; clearForm() })
 async function submit() {
