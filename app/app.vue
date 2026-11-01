@@ -3,6 +3,7 @@ import { Search, Plus, Star, Clock3, KeyRound, FileText, CreditCard, ContactRoun
 import { searchItems } from '~/utils/search'
 import { folderContainsItem } from '~/utils/folders'
 import { matchesShortcut } from '~/utils/shortcuts'
+import { clearQuickAccessSearch } from '~/utils/quickAccessSearch'
 import type { ItemKind, SessionStatus, VaultItem } from '~/types/vault'
 import type { ContextAction } from '~/components/ItemContextMenu.vue'
 import type { ManagementMode } from '~/components/ManageItemsDialog.vue'
@@ -10,6 +11,8 @@ import type { ManagementMode } from '~/components/ManageItemsDialog.vue'
 const vault = useVault()
 const prefs = usePreferences()
 const appUpdates = useAppUpdates()
+// Also discard a dismissed overlay's search when its component is unmounted.
+watch([vault.locked, () => vault.session.value.generation], clearQuickAccessSearch, { flush: 'sync' })
 const activeView = ref('All items')
 const vaultScope = ref('all')
 const activeCollection = ref('')

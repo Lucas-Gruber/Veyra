@@ -15,6 +15,7 @@ interface FixtureControls {
   releaseChange: () => void
   replaceSession: () => void
   emitQuickBlur: () => void
+  emitQuickFocus: () => void
 }
 
 declare global {
@@ -67,6 +68,7 @@ export async function installConnectedVault(page: Page, folderFixture?: { folder
         for (const id of listeners.get('vault:changed') || []) callbacks.get(id)?.({ payload: status() })
       },
       emitQuickBlur() { for (const id of listeners.get('quick-access:blur') || []) callbacks.get(id)?.({ payload: null }) },
+      emitQuickFocus() { for (const id of listeners.get('quick-access:focus') || []) callbacks.get(id)?.({ payload: null }) },
     }
     Object.assign(window, {
       __VEYRA_UI_FIXTURE__: controls,

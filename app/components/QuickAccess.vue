@@ -3,11 +3,13 @@ import { Search, ArrowUpRight, KeyRound, Star, CornerDownLeft, ChevronRight, X, 
 import type { VaultItem } from '~/types/vault'
 import { highlightSegments, searchItems } from '~/utils/search'
 import { hasSelectedInputText, matchesShortcut, type ShortcutAction } from '~/utils/shortcuts'
+import { clearQuickAccessSearch, rememberQuickAccessSearch, restoreQuickAccessSearch } from '~/utils/quickAccessSearch'
 const props = defineProps<{ standalone?: boolean }>()
 const emit = defineEmits<{ close: []; openItem: [id: string] }>()
 const vault = useVault()
 const prefs = usePreferences()
-const query = ref('')
+const query = ref(vault.locked.value ? '' : restoreQuickAccessSearch(vault.session.value.generation))
+let dismissed = false
 const selected = ref(0)
 const actions = ref(false)
 const searchInput = ref<HTMLInputElement>()
@@ -19,10 +21,11 @@ let unlistenBlur: (() => void) | undefined
 const results = computed(() => vault.locked.value ? [] : searchItems(vault.items.value.filter(item => !item.deleted), query.value).slice(0, 8))
 const current = computed(() => results.value[selected.value])
 watch(query, () => { selected.value = 0; actions.value = false })
-watch(vault.locked, value => {
-  if (value) { query.value = ''; selected.value = 0; actions.value = false }
-  else nextTick(() => searchInput.value?.focus())
-})
+watch([vault.locked, () => vault.session.value.generation], ([locked]) => {
+  clearQuickAccessSearch()
+  reset()
+  if (!locked) nextTick(() => searchInput.value?.focus())
+}, { flush: 'sync' })
 watch(selected, () => nextTick(() => document.querySelector('.quick-result.selected')?.scrollIntoView({ block: 'nearest' })))
 onMounted(async () => {
   previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
@@ -31,14 +34,29 @@ onMounted(async () => {
   else searchInput.value?.focus()
   if (vault.desktop.value) {
     const { listen } = await import('@tauri-apps/api/event')
-    unlistenFocus = await listen('quick-access:focus', () => { prefs.load(); nextTick(() => { if (vault.locked.value) dialog.value?.querySelector<HTMLInputElement>('input')?.focus(); else searchInput.value?.focus() }) })
-    unlistenBlur = await listen('quick-access:blur', reset)
+    unlistenFocus = await listen('quick-access:focus', () => {
+      prefs.load()
+      if (dismissed) {
+        query.value = vault.locked.value ? '' : restoreQuickAccessSearch(vault.session.value.generation)
+        dismissed = false
+      }
+      nextTick(() => { if (vault.locked.value) dialog.value?.querySelector<HTMLInputElement>('input')?.focus(); else searchInput.value?.focus() })
+    })
+    unlistenBlur = await listen('quick-access:blur', dismiss)
   }
 })
-onBeforeUnmount(() => { unlistenFocus?.(); unlistenBlur?.(); previousFocus?.focus() })
+onBeforeUnmount(() => { dismiss(); unlistenFocus?.(); unlistenBlur?.(); previousFocus?.focus() })
 function reset() { query.value = ''; actions.value = false; selected.value = 0; loginForm.value?.clear() }
-async function close() {
+function dismiss() {
+  if (!dismissed) {
+    if (vault.locked.value) clearQuickAccessSearch()
+    else rememberQuickAccessSearch(query.value, vault.session.value.generation)
+    dismissed = true
+  }
   reset()
+}
+async function close() {
+  dismiss()
   if (props.standalone) await vault.hideQuickAccess()
   else emit('close')
 }

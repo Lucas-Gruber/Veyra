@@ -27,10 +27,13 @@ ID used by Wayland docks.
 The native main and Quick Access WebViews share one Rust session and metadata snapshot. Tauri capabilities allow only scoped local commands and session event listeners; there is no shell/filesystem/generic clipboard/opener IPC exposed. Website opening is a native operation restricted to a known item's HTTPS URL and an active session.
 
 Native Quick Access fills its undecorated window with one surface and hides on
-native focus loss (including clicking another window). Search, action-menu state
-and unsubmitted sign-in fields are cleared on focus loss or explicit closing.
-The browser overlay closes on a backdrop
-click. Compositor-specific focus delivery still requires desktop verification.
+native focus loss (including clicking another window). The last search is retained
+in WebView memory for 30 seconds after dismissal and restored when reopened within
+that period. It is never written to browser storage or disk. Locking or changing
+the vault session immediately discards it. Action-menu state and unsubmitted
+sign-in fields are cleared on focus loss or explicit closing. The browser overlay
+has the same search retention and closes on a backdrop click.
+Compositor-specific focus delivery still requires desktop verification.
 
 Quick Access defaults to `Ctrl+Alt+Space` and can be rebound in Settings → Quick Access. Rust registers the accelerator through the Wayland GlobalShortcuts portal or the native X11 backend. Status reports registration failures and the actual portal trigger. `veyra --quick-access` also forwards to the running Linux instance or starts it with only Quick Access visible; it can be assigned manually in compositor settings. The floating window uses supported Tauri show/focus/position calls; a compositor may reject focus or placement. Global activation/focus remains unverified on the user's desktop. See [desktop shortcuts](shortcuts.md).
 
