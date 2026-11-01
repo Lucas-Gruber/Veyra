@@ -170,6 +170,40 @@ mod linux {
         assert_eq!(receive.recv().unwrap(), Launch::Main);
         assert!(service.launch("file:///tmp/untrusted").is_err());
     }
+
+    #[test]
+    #[ignore = "Run under a private dbus-run-session; never use a real desktop session"]
+    fn forwards_launches_before_any_gtk_runtime_and_releases_the_name() {
+        let primary = prepare(Launch::Main).unwrap().unwrap();
+        assert!(prepare(Launch::QuickAccess).unwrap().is_none());
+        assert_eq!(
+            primary
+                .requests
+                .recv_timeout(std::time::Duration::from_secs(2))
+                .unwrap(),
+            Launch::QuickAccess
+        );
+        assert!(prepare(Launch::Main).unwrap().is_none());
+        assert_eq!(
+            primary
+                .requests
+                .recv_timeout(std::time::Duration::from_secs(2))
+                .unwrap(),
+            Launch::Main
+        );
+        let client = Connection::session().unwrap();
+        assert!(client
+            .call_method(
+                Some(NAME),
+                PATH,
+                Some(INTERFACE),
+                "Launch",
+                &("https://example.org",)
+            )
+            .is_err());
+        drop(primary);
+        assert!(prepare(Launch::QuickAccess).unwrap().is_some());
+    }
 }
 
 #[cfg(test)]
