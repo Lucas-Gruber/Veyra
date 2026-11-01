@@ -16,8 +16,8 @@ declare global {
 
 // Synthetic IPC contracts only. These tests do not authenticate, encrypt or contact
 // Vaultwarden; the independently seeded Rust integration tests cover those paths.
-export async function installConnectedVault(page: Page) {
-  await page.addInitScript(() => {
+export async function installConnectedVault(page: Page, folderFixture?: { folders: { id: string; name: string }[]; assignments: Record<string, string> }) {
+  await page.addInitScript((folderFixture) => {
     let generation = 1
     let locked = false
     let nextCallback = 0
@@ -40,9 +40,14 @@ export async function installConnectedVault(page: Page) {
       { id: 'trashed-login', name: 'Trashed fixture login', organizationId: 'org-lantern', collectionIds: ['coll-platform'], kind: 'login', readOnly: false, deleted: true },
     ] as const
     const items: VaultItem[] = definitions.map(item => ({ ...item, collectionIds: [...item.collectionIds], favorite: false, username: item.kind === 'login' ? 'synthetic-user@example.test' : '', url: item.kind === 'login' ? 'https://example.test/' : '', domain: item.kind === 'login' ? 'example.test' : '', folder: '', color: 'violet', initials: 'SF', updated: '2026-10-29', tags: [], hasPassword: item.kind === 'login', hasTotp: false, revision: '2026-10-29T00:00:00.000Z', canDelete: !item.readOnly && !item.deleted, canRestore: item.deleted }))
+    const folders = folderFixture?.folders || []
+    for (const item of items) {
+      item.folderId = folderFixture?.assignments[item.id] || null
+      item.folder = folders.find(folder => folder.id === item.folderId)?.name || ''
+    }
     const drafts: Record<string, ItemDraft> = Object.fromEntries(items.map(item => [item.id, { id: item.id, revision: item.revision || null, organizationId: item.organizationId || null, collectionIds: item.collectionIds || [], kind: item.kind, name: item.name, favorite: item.favorite, notes: 'Synthetic editor note', username: item.username, password: 'synthetic-editor-password', totp: '', uri: item.url, card: {}, identity: {} }]))
     const status = () => ({ locked, generation, mode: locked ? 'disconnected' : 'connected', lastSync: locked ? null : '2026-10-29T00:00:00Z' })
-    const snapshot = () => structuredClone({ session: status(), items: locked ? [] : items, organizations: locked ? [] : organizations, collections: locked ? [] : collections, unsupportedItems: 0, needsSync: false })
+    const snapshot = () => structuredClone({ session: status(), items: locked ? [] : items, organizations: locked ? [] : organizations, collections: locked ? [] : collections, folders: locked ? [] : folders, unsupportedItems: 0, needsSync: false })
     const controls: FixtureControls = {
       calls: [], failNextSave: false, delayNextEditor: false, pendingEditor: false,
       releaseEditor() { releaseEditor?.(); releaseEditor = undefined },
@@ -105,5 +110,5 @@ export async function installConnectedVault(page: Page) {
         },
       },
     })
-  })
+  }, folderFixture)
 }
