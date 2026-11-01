@@ -6,7 +6,9 @@ const vault = useVault()
 const appUpdates = useAppUpdates()
 const tab = ref('Appearance')
 const panel = ref<HTMLElement>()
+const content = ref<HTMLElement>()
 const initialFocus = ref<HTMLButtonElement>()
+watch(tab, () => { if (content.value) content.value.scrollTop = 0 }, { flush: 'post' })
 let previousFocus: HTMLElement | null = null
 onMounted(() => { previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null; initialFocus.value?.focus() })
 onBeforeUnmount(() => previousFocus?.focus())
@@ -23,11 +25,12 @@ function onKey(event: KeyboardEvent) {
 <template>
   <div class="modal-backdrop" @click.self="emit('close')">
     <section ref="panel" class="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-heading" @keydown="onKey">
+      <button ref="initialFocus" class="icon-button settings-close" aria-label="Close settings" @click="emit('close')"><X :size="19"/></button>
       <div class="settings-sidebar"><h2 id="settings-heading">Settings</h2><p>Make yourself at home.</p>
         <button v-for="entry in [{ label: 'Appearance', icon: Palette }, { label: 'Quick Access', icon: Command }, { label: 'Security', icon: ShieldCheck }, { label: 'About', icon: Info }]" :key="entry.label" :class="{ active: tab === entry.label }" @click="tab = entry.label"><component :is="entry.icon" :size="17"/>{{ entry.label }}</button>
         <div class="settings-version"><BrandMark/> Veyra <span>{{ appUpdates.version.value }}</span></div>
       </div>
-      <div class="settings-body"><button ref="initialFocus" class="icon-button settings-close" aria-label="Close settings" @click="emit('close')"><X :size="19"/></button>
+      <div ref="content" class="settings-body" role="region" :aria-label="`${tab} settings`" tabindex="0">
         <template v-if="tab === 'Appearance'">
           <p class="eyebrow">YOUR SPACE, YOUR WAY</p><h3>Appearance</h3><p class="muted">A familiar feeling, with a little personality.</p>
           <h4>Color theme</h4><div class="theme-options">
@@ -56,3 +59,14 @@ function onKey(event: KeyboardEvent) {
     </section>
   </div>
 </template>
+
+<style scoped>
+.settings-dialog { position: relative; height: min(680px, calc(100dvh - 48px)); max-height: calc(100dvh - 48px); min-height: 0; overflow: hidden; }
+.settings-sidebar { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.settings-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.settings-dialog > .settings-close { position: absolute; top: 16px; right: 16px; z-index: 2; background: var(--bg); }
+@media (max-width: 560px) {
+  .settings-dialog { height: min(720px, calc(100dvh - 40px)); max-height: calc(100dvh - 40px); }
+  .settings-sidebar { max-height: 45%; padding-right: 44px; }
+}
+</style>
