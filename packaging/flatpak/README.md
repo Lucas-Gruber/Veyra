@@ -22,7 +22,16 @@ The script stages local sources with SHA-256 checksums, validates the binary arc
 
 The installed-bundle test runs under a private D-Bus/Xvfb session. It checks a separate native Quick Access window, synthetic-vault search, a real native clipboard copy and explicit-lock clearing before the clipboard timer. Real Vaultwarden authentication is verified separately by the compatibility workflow with disposable accounts. Failure prevents publication. The current cloud container cannot run the Flatpak sandbox because user-namespace uid-map writes are blocked; metadata or native-host tests do not substitute for the installed CI gate. The unresolved Cargo audit documented in `docs/security.md` also blocks publication.
 
-Runtime permissions are limited to network, Wayland/fallback X11, shared IPC and rendering devices. There is no host-filesystem or unrestricted D-Bus grant. Real GNOME/KDE Wayland clipboard ownership, HTTPS portal opening and compositor focus remain separate manual checks. The shortcut is currently in-app; global registration and browser Native Messaging pairing require future authenticated integration.
+Runtime permissions are limited to network, Wayland/fallback X11, shared IPC,
+rendering devices, the exact Veyra launcher bus name and talking to
+`org.kde.StatusNotifierWatcher`. There is no host-filesystem or unrestricted
+D-Bus grant. The tray uses KSNI unique-name mode inside Flatpak, verified through
+an actual private filtered proxy; no KDE name-ownership grant is needed. Real
+GNOME/KDE panel placement, Wayland clipboard ownership, HTTPS portal opening and
+compositor focus remain separate manual checks. Native global shortcut
+registration uses the Wayland portal or X11 with explicit status/fallback;
+installed Flatpak portal activation and browser Native Messaging pairing remain
+unverified. See [tray](../../docs/tray.md) and [shortcuts](../../docs/shortcuts.md).
 
 Build output goes to `artifacts/`, separate from Nuxt’s generated `dist` symlink. Prerelease versions are packaged on the `beta` app branch; stable versions use `stable`.
 

@@ -35,6 +35,10 @@ written to browser storage or disk. Locking or changing
 the vault session immediately discards it. Action-menu state and unsubmitted
 sign-in fields are cleared on focus loss or explicit closing. The browser overlay
 has the same search retention and closes on a backdrop click.
+Quick Access always shows **Open Veyra** and its editable shortcut (`Ctrl+E` by
+default). It opens the selected item in the main client or restores the main
+window while locked or without search results. Even long shortcut labels wrap
+within narrow windows.
 Compositor-specific focus delivery still requires desktop verification.
 
 Quick Access defaults to `Ctrl+Alt+Space` and can be rebound in Settings → Quick Access. Rust registers the accelerator through the Wayland GlobalShortcuts portal or the native X11 backend. Status reports registration failures and the actual portal trigger. `veyra --quick-access` also forwards to the running Linux instance or starts it with only Quick Access visible; it can be assigned manually in compositor settings. The floating window uses supported Tauri show/focus/position calls; a compositor may reject focus or placement. Global activation/focus remains unverified on the user's desktop. See [desktop shortcuts](shortcuts.md).
@@ -45,7 +49,21 @@ Locking cancels pending work and signs out. Both windows discard metadata and sh
 
 The browser UI is a sample-data preview only. Its clipboard cannot be cleared reliably. Connected operations require Rust, and a real connection failure never switches to sample data.
 
-The earlier native application was exercised under a private cloud X11 display, including real server login/copy/sync/Quick Access/lock. This does not establish GNOME/KDE/Wayland, multiple-monitor, accessibility or Flatpak portal compatibility for the current changes. New CLI forwarding is tested on a private D-Bus; browser Native Messaging is tested with an isolated Chromium profile and synthetic transport fixtures. The optional [browser companion](browser-companion.md) requires native-host registration and extension setup; its Flatpak and Firefox end-to-end paths remain unverified. Tray, automatic startup and Secret Service integration are deferred.
+The earlier native application was exercised under a private cloud X11 display, including real server login/copy/sync/Quick Access/lock. This does not establish GNOME/KDE/Wayland, multiple-monitor, accessibility or Flatpak portal compatibility for the current changes. New CLI forwarding is tested on a private D-Bus; browser Native Messaging is tested with an isolated Chromium profile and synthetic transport fixtures. The optional [browser companion](browser-companion.md) requires native-host registration and extension setup; its Flatpak and Firefox end-to-end paths remain unverified. Automatic startup and Secret Service integration are deferred.
+
+Closing the main window keeps the app running. The native [tray menu](tray.md)
+opens Veyra or Quick Access, locks the session and quits after locking and a
+bounded clipboard-clear attempt. Linux uses a Rust StatusNotifier backend;
+Settings → Security reports tray/host availability. A private D-Bus test checks
+actual registration, icon pixels and activation through Flatpak's real bus
+filter. Visible panel placement, installed Flatpak execution and Windows/macOS
+tray interaction still need native acceptance tests.
+
+Settings have one scrolling content area, viewport-bounded dimensions and
+compact navigation in short/narrow windows. Background content is inert while
+the dialog is open; closing restores focus to its opener. Chromium and headless
+WebKit tests cover wheel/keyboard scrolling across six sizes down to 320×400
+with 18px text. These do not reproduce every GTK overlay-scrollbar style.
 
 ## KDE Wayland with NVIDIA: startup protocol error
 

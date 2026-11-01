@@ -1,4 +1,42 @@
-# Open project issues — 2026-11-01
+# Quick Access, tray and settings — 2026-11-01
+
+Local checks after the selected-item retention, main-client shortcut, tray and
+settings fixes, with the owner's working version `0.1.1` unchanged:
+
+| Check | Result |
+| --- | --- |
+| Strict TypeScript, ESLint, static Nuxt generation and coordinated version manifests | Passed |
+| Frontend unit suite | 47 passed |
+| Full Chromium UI suite | 52 passed with explicit demo/synthetic IPC fixtures |
+| Headless WebKit targeted UI checks | Seven settings, eight retention and five main-client shortcut cases passed across dedicated runs; includes 320px width and long bindings |
+| Rust formatting, Clippy all targets with warnings denied, default tests | Passed; 42 passed and 14 environment/child-fixture tests explicitly ignored |
+| Native application and native host debug build | `cargo build --locked --manifest-path src-tauri/Cargo.toml --bins --features custom-protocol` passed with generated static assets |
+| Linux tray host and real KSNI registration | Private D-Bus probe passed without DISPLAY/Wayland; icon pixel export and host availability checked |
+| Flatpak tray D-Bus permissions | Real `xdg-dbus-proxy --filter --talk=org.kde.StatusNotifierWatcher` round trip passed with unique-name registration, icon pixels, menu interface/layout and activation; no tray-name ownership grant |
+| Single-instance CLI | Private D-Bus forwarding test passed without a user desktop session |
+| Browser companion | Five passed, none skipped, including an isolated Chromium extension/native-host/DOM round trip with synthetic bridge transport |
+| Audit-policy and launcher regression tests | 18 audit-policy and four isolated launcher/GIO cases passed |
+| Changed CI workflow | Pinned actionlint 1.7.12 passed |
+
+Search and selection remain only in memory for 30 seconds after dismissal and
+clear on locking or session replacement. Tests cover reordering by stable item
+ID, expiration after suspend and late fill responses after reopening. Settings
+checks include wheel/keyboard scrolling, six viewport sizes with 18px text,
+background inertness and focus restoration. WebKit checks used temporary runtime
+libraries without changing the host installation or disabling its sandbox.
+
+The published tray-icon 0.25.1 package was verified against its Cargo checksum;
+all upstream files are retained with their licenses. The only upstream source
+patch enables the documented KSNI unique-name option in Flatpak. Its provenance
+is recorded under `src-tauri/vendor/tray-icon/VEYRA-PATCH.md`.
+
+Actual panel icon placement/menu interaction, native GTK scrollbar styling,
+compositor focus, Windows/macOS tray behavior and an installed current Flatpak
+remain unverified. Live Vaultwarden cases were not rerun for these desktop
+changes; earlier live results are recorded below. The changed source/dependency
+inputs remain outside the Alpha3 RSA exception. No release, tag or push was made.
+
+# Earlier open-project-issue baseline — 2026-11-01
 
 The nine open issues have local implementations and separate commits; see
 [the issue inventory](issues.md). Final checks on this workstation:

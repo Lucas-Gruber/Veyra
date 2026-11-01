@@ -10,6 +10,14 @@ Veyra can sign in to a compatible Vaultwarden server, decrypt supported personal
 
 This is an early integration preview, **not a production-security claim**. The current checkout adds nested folders, context actions, Shift-click selection, folder/collection assignment, duplication and verified vault moves. Shortcuts are configurable; Quick Access uses native X11 registration or the Wayland GlobalShortcuts portal and also accepts `veyra --quick-access`. Actual compositor activation/focus still needs manual verification. Optional Linux browser filling requires the development [browser companion](docs/browser-companion.md); it fills an exact saved HTTPS page after an explicit action and never submits the form. Offline unlock/cache, automatic inactivity locking, attachment editing and permanent deletion remain deferred. Locking signs out, clears both windows and requires another sign-in. Clipboard clearing is best effort after 30 seconds, only when unchanged; external history managers may retain values.
 
+Quick Access remembers its search and selected entry for 30 seconds after closing,
+in memory only; locking or changing sessions clears both. Its visible **Open
+Veyra** action (`Ctrl+E` by default) restores the main client, including while
+locked. Closing the main window keeps Veyra running. A native tray menu provides
+open, Quick Access, lock and quit actions on Linux, Windows and macOS; current
+runtime verification is limited to isolated Linux D-Bus tests. Settings → Security
+reports tray availability. See [tray behavior and platform limits](docs/tray.md).
+
 ```sh
 pnpm install --frozen-lockfile
 pnpm tauri dev            # Native application; Linux prerequisites required
@@ -22,7 +30,7 @@ Connect using your HTTPS server address in the desktop application. Passwords ar
 
 Settings → About shows the actual native version, release channel, platform, architecture and license. Update checks contact the public GitHub release API when due at startup and daily while open; they can be disabled or triggered manually. Stable installations ignore prereleases. Browser preview performs no update requests. Checks do not install updates.
 
-Use `pnpm release:version prerelease --dry-run`, `pnpm release:version prerelease` and `pnpm version:check` to keep npm, Cargo, Tauri and AppStream consistent; see [versioning](docs/versioning.md). The published preview is **[0.1.0-alpha.3](https://github.com/Lucas-Gruber/Veyra/releases/tag/v0.1.0-alpha.3)**, with a Linux x86_64 Flatpak, dependency source archive and checksums. The working version is **0.1.0-alpha.4**, an unreleased local candidate. A tag starts validation; publication remains gated.
+Use `pnpm release:version prerelease --dry-run`, `pnpm release:version prerelease` and `pnpm version:check` to keep npm, Cargo, Tauri and AppStream consistent; see [versioning](docs/versioning.md). The published preview is **[0.1.0-alpha.3](https://github.com/Lucas-Gruber/Veyra/releases/tag/v0.1.0-alpha.3)**, with a Linux x86_64 Flatpak, dependency source archive and checksums. The working version is **0.1.1**, an unreleased local candidate. A tag starts validation; publication remains gated.
 
 ## Compatibility and validation
 
