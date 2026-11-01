@@ -3,5 +3,5 @@
   "identifier": "editing",
   "description": "Only the main local window can explicitly load transient item contents or editor fields and save encrypted vault entries.",
   "windows": ["main"],
-  "permissions": ["allow-get-item-contents", "allow-get-editable-item", "allow-save-item"]
+  "permissions": ["allow-get-item-contents", "allow-get-editable-item", "allow-save-item", "allow-manage-items"]
 }

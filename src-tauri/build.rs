@@ -13,6 +13,7 @@ fn main() {
         "get_editable_item",
         "save_item",
         "change_item",
+        "manage_items",
         "unlock_demo",
         "lock_vault",
         "show_quick_access",

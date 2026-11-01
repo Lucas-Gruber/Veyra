@@ -1,7 +1,9 @@
 //! Bounded Vaultwarden HTTP transport with official Bitwarden GPL cryptography.
 //! Tokens, encrypted ciphers and SDK keys remain in Rust and are never written to disk.
 mod editing;
-pub use editing::{ChangeAction, ChangeItemRequest, EditableItem, ItemDraft};
+pub use editing::{
+    ChangeAction, ChangeItemRequest, EditableItem, ItemDraft, ManageItemsRequest, ManagedItemResult,
+};
 use std::{collections::HashMap, num::NonZeroU32, time::Duration};
 
 use bitwarden_api_api::models::{
@@ -304,6 +306,7 @@ pub struct Vaultwarden {
     access_token: Zeroizing<String>,
     expires_at: std::time::Instant,
     encrypted: Vec<Cipher>,
+    management_unsupported: std::collections::HashSet<String>,
     items: Vec<ItemMetadata>,
     user_key: Option<SymmetricCryptoKey>,
     private_key: EncString,
@@ -502,6 +505,7 @@ impl Vaultwarden {
             access_token: Zeroizing::new(std::mem::take(&mut token.access_token)),
             expires_at: token_requested_at + Duration::from_secs(token.expires_in),
             encrypted: vec![],
+            management_unsupported: Default::default(),
             items: vec![],
             skipped_items: 0,
             user_key: Some(user_key),
@@ -556,8 +560,10 @@ impl Vaultwarden {
             return Err(network_error());
         }
         let body = bounded_body(response, MAX_SYNC_BYTES).await?;
+        let raw: Value = serde_json::from_slice(&body).map_err(|_| invalid_response())?;
+        let management_unsupported = editing::management_unsupported_ids(&raw)?;
         let sync: SyncResponseModel =
-            serde_json::from_slice(&body).map_err(|_| invalid_response())?;
+            serde_json::from_value(raw).map_err(|_| invalid_response())?;
         let ciphers = sync.ciphers.ok_or_else(invalid_response)?;
         if ciphers.len() > MAX_ITEMS {
             return Err(VaultError::new(
@@ -725,6 +731,7 @@ impl Vaultwarden {
         self.collections = collections;
         self.folders = folders;
         self.encrypted = next_encrypted;
+        self.management_unsupported = management_unsupported;
         self.items = next_items;
         self.skipped_items = skipped_items;
         self.write_needs_sync = false;
@@ -789,6 +796,7 @@ impl Vaultwarden {
         self.access_token.zeroize();
         self.items.clear();
         self.encrypted.clear();
+        self.management_unsupported.clear();
         self.organizations.clear();
         self.collections.clear();
         self.folders.clear();

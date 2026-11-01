@@ -54,3 +54,9 @@ export interface LoginRequest {
 }
 export type LoginOutcome = { status: 'authenticated'; session: SessionStatus } | { status: 'two_factor_required'; providers: TwoFactorProvider[]; session: SessionStatus }
 export interface VaultCommandError { code: string; message: string }
+export type ManagementOperation =
+  | { type: 'assign_folder'; folderId: string | null }
+  | { type: 'assign_collections'; collectionIds: string[] }
+  | { type: 'copy' | 'move'; organizationId: string | null; collectionIds: string[]; folderId: string | null }
+export interface ManagedItemResult { sourceId: string; itemId: string | null; status: 'succeeded' | 'failed' | 'uncertain' | 'not_attempted'; error: VaultCommandError | null }
+export interface BatchOutcome { results: ManagedItemResult[]; refreshPending: boolean; snapshot: VaultSnapshot }

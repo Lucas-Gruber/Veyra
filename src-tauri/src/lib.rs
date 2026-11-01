@@ -15,7 +15,8 @@ use tauri::{Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_opener::OpenerExt;
 use tokio::sync::Mutex as AsyncMutex;
 use vaultwarden::{
-    ChangeItemRequest, EditableItem, Field, ItemDraft, TwoFactorInput, VaultError, Vaultwarden,
+    ChangeItemRequest, EditableItem, Field, ItemDraft, ManageItemsRequest, ManagedItemResult,
+    TwoFactorInput, VaultError, Vaultwarden,
 };
 use zeroize::Zeroizing;
 
@@ -400,6 +401,85 @@ async fn change_item(
     write_item(app, expected_generation, None, Some(request)).await
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct BatchOutcome {
+    results: Vec<ManagedItemResult>,
+    refresh_pending: bool,
+    snapshot: MetadataSnapshot,
+}
+
+#[tauri::command]
+async fn manage_items(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+    expected_generation: u64,
+    request: ManageItemsRequest,
+) -> Result<BatchOutcome, VaultError> {
+    if window.label() != "main" {
+        return Err(error(
+            "write_not_allowed",
+            "Open the main window to manage entries.",
+        ));
+    }
+    let (generation, vault, cancellation) = connected(&app.state::<Session>())?;
+    if generation != expected_generation {
+        return Err(error(
+            "cancelled",
+            "The session changed. Select the entries again.",
+        ));
+    }
+    // Serialize writes and retain the vault guard through the session snapshot
+    // commit, exactly as for editor writes. No stale batch can reopen a lock.
+    let (result, vault) = tokio::select! {
+        biased;
+        _ = cancellation.cancelled() => return Err(error("cancelled", "The session changed. Some changes may have reached the server; inspect the vault after signing in again.")),
+        result = async {
+            let mut vault = vault.lock_owned().await;
+            let result = vault.manage_items(request).await;
+            (result, vault)
+        } => result,
+    };
+    let result = match result {
+        Err(failure) if failure.code == "session_expired" => {
+            expire_session(&app, generation)?;
+            return Err(failure);
+        }
+        other => other,
+    };
+    let session = app.state::<Session>();
+    let mut state = session.0.lock().map_err(|_| unavailable())?;
+    state.require_generation(generation)?;
+    state.status.require_unlocked()?;
+    state.metadata = vault.metadata();
+    state.unsupported_items = vault.skipped_items;
+    state.organizations = vault.organizations.clone();
+    state.collections = vault.collections.clone();
+    state.folders = vault.folders.clone();
+    state.needs_sync = vault.needs_sync();
+    let status = state.status.clone();
+    let (results, refresh_pending) = match result {
+        Ok(result) => result,
+        Err(failure) => {
+            drop(state);
+            changed(&app, &status);
+            return Err(failure);
+        }
+    };
+    if !refresh_pending {
+        state.status.last_sync = Some(chrono::Utc::now().to_rfc3339());
+    }
+    let snapshot = state.snapshot();
+    drop(state);
+    // Guard stays alive until after the state commit above.
+    changed(&app, &snapshot.session);
+    Ok(BatchOutcome {
+        results,
+        refresh_pending,
+        snapshot,
+    })
+}
+
 async fn read_field(
     app: &tauri::AppHandle,
     item_id: &str,
@@ -706,6 +786,7 @@ pub fn run() {
             get_editable_item,
             save_item,
             change_item,
+            manage_items,
             copy_field,
             reveal_field,
             show_quick_access,

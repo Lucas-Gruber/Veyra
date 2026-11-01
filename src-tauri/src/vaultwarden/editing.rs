@@ -6,6 +6,9 @@ use bitwarden_vault::{
     SecureNoteView,
 };
 use chrono::Utc;
+mod management;
+pub(super) use management::management_unsupported_ids;
+pub use management::{ManageItemsRequest, ManagedItemResult};
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -632,7 +635,7 @@ impl Vaultwarden {
 mod tests {
     use super::*;
 
-    fn draft(kind: &str) -> ItemDraft {
+    pub(super) fn draft(kind: &str) -> ItemDraft {
         serde_json::from_value(serde_json::json!({
             "kind": kind, "name": format!("Veyra synthetic {kind}"), "favorite": false,
             "notes": "Synthetic editor notes", "username": "editor@veyra.test", "password": "Only-synthetic-editor-data",
@@ -688,7 +691,7 @@ mod tests {
         assert!(!trashed.can_delete && trashed.can_restore && trashed.read_only);
     }
 
-    async fn connected_fixture(organization: bool) -> Vaultwarden {
+    pub(super) async fn connected_fixture(organization: bool) -> Vaultwarden {
         let path = std::env::var("VEYRA_TEST_FIXTURE_FILE").expect("set synthetic fixture path");
         let fixture: Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
         let account = if organization {
