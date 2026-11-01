@@ -1,5 +1,6 @@
 [package]
 name = "veyra"
+default-run = "veyra"
 version = "0.1.0-alpha.4"
 description = "Your vault. One shortcut away."
 authors = ["Veyra contributors"]
@@ -36,6 +37,7 @@ bitwarden-vault = { git = "https://github.com/bitwarden/sdk-internal", rev = "b8
 bitwarden-api-api = { git = "https://github.com/bitwarden/sdk-internal", rev = "b865d1db0025d9d12bea871a3a131c05aaeed205" }
 
 [target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"
 zbus = "=5.19.0"
 ashpd = { version = "=0.13.13", features = ["global_shortcuts"] }
 futures-util = "=0.3.34"

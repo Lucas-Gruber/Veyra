@@ -17,6 +17,8 @@
     "allow-copy-field",
     "allow-reveal-field",
     "allow-open-website",
+    "allow-browser-companion-status",
+    "allow-begin-browser-fill",
     "allow-open-main-item",
     "allow-login-vault",
     "allow-list-metadata",

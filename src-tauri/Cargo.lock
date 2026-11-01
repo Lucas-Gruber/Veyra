@@ -6591,6 +6591,7 @@ dependencies = [
  "bitwarden-vault",
  "chrono",
  "futures-util",
+ "libc",
  "reqwest",
  "semver",
  "serde",

@@ -1,8 +1,9 @@
+pub mod browser_bridge;
 mod clipboard;
 mod demo;
 mod quick_launch;
-mod shortcuts;
 mod session;
+mod shortcuts;
 mod updates;
 mod urls;
 mod vaultwarden;
@@ -34,6 +35,9 @@ fn unavailable() -> VaultError {
     )
 }
 fn changed(app: &tauri::AppHandle, status: &SessionStatus) {
+    if status.locked {
+        browser_bridge::invalidate(app);
+    }
     // No credentials, item metadata or server responses are emitted globally.
     let _ = app.emit("vault:changed", status);
 }
@@ -762,10 +766,12 @@ pub fn run() {
     let result = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(Session::default())
+        .manage(browser_bridge::BrowserBridge::default())
         .manage(ClipboardService::default())
         .manage(updates::UpdateService::default())
         .manage(shortcuts::ShortcutService::default())
         .setup(move |app| {
+            browser_bridge::initialize(app.handle());
             shortcuts::initialize(app.handle());
             startup.attach(app.handle());
             Ok(())
@@ -776,6 +782,8 @@ pub fn run() {
             updates::app_info,
             updates::check_for_updates,
             updates::open_release_page,
+            browser_bridge::browser_companion_status,
+            browser_bridge::begin_browser_fill,
             session_status,
             login_vault,
             unlock_demo,

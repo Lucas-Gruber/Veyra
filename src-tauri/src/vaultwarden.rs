@@ -1,5 +1,6 @@
 //! Bounded Vaultwarden HTTP transport with official Bitwarden GPL cryptography.
 //! Tokens, encrypted ciphers and SDK keys remain in Rust and are never written to disk.
+mod browser;
 mod editing;
 pub use editing::{
     ChangeAction, ChangeItemRequest, EditableItem, ItemDraft, ManageItemsRequest, ManagedItemResult,

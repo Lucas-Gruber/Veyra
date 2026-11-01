@@ -21,6 +21,8 @@ fn main() {
         "copy_field",
         "reveal_field",
         "open_website",
+        "browser_companion_status",
+        "begin_browser_fill",
         "open_main_item",
     ]);
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(manifest))
