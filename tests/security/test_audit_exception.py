@@ -3,6 +3,7 @@ import copy
 from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tempfile
@@ -29,13 +30,29 @@ class ExceptionGuardTests(unittest.TestCase):
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(PROJECT/name, dest)
         self.policy = gate.read_json(PROJECT/'.security/rsa-alpha3-policy.json')
-        self.report = gate.read_json(HERE/'fixtures/cargo-audit-alpha3.json')
+        # This temporary repository tests the old policy's behavior, irrespective
+        # of the working application's current version/dependency count. These
+        # are synthetic inputs, never a fresh audit or approval for the checkout.
+        for name in ('package.json', 'src-tauri/tauri.conf.json'):
+            file = self.root/name
+            value = json.loads(file.read_text())
+            value['version'] = gate.APP
+            file.write_text(json.dumps(value))
+        manifest = self.root/'src-tauri/Cargo.toml'
+        manifest.write_text(re.sub(r'(?m)^version = "[^"]+"',
+                                  f'version = "{gate.APP}"', manifest.read_text(), count=1))
+        self.report = self.fixture_report()
         self.now = datetime(2026, 10, 30, tzinfo=timezone.utc)
         # These approvals exist only in this temporary in-memory fixture.
         self.policy['approval'] = {'approved': True, 'by': 'TEST FIXTURE ONLY',
             'reference': 'synthetic unit-test approval, not an owner decision',
             'on': '2026-10-29'}
         self.bind_source()
+
+    def fixture_report(self):
+        report = gate.read_json(HERE/'fixtures/cargo-audit-alpha3.json')
+        report['lockfile']['dependency-count'] = len(gate.project_lock(self.root)['package'])
+        return report
 
     def bind_source(self):
         fingerprint, inventory = gate.source_fingerprint(self.root)
@@ -88,14 +105,14 @@ class ExceptionGuardTests(unittest.TestCase):
         finding = self.report['vulnerabilities']['list'][0]
         finding['advisory']['title'] += ' NEW SCOPE'
         self.rejected()
-        self.report = gate.read_json(HERE/'fixtures/cargo-audit-alpha3.json')
+        self.report = self.fixture_report()
         self.report['vulnerabilities']['list'].append(copy.deepcopy(finding))
         self.report['vulnerabilities']['count'] = 2
         self.rejected()
 
     def test_wrong_package_or_checksum(self):
         for key, value in (('version','0.10.0-rc.20'), ('checksum','0'*64), ('name','another-crate')):
-            self.report = gate.read_json(HERE/'fixtures/cargo-audit-alpha3.json')
+            self.report = self.fixture_report()
             self.report['vulnerabilities']['list'][0]['package'][key] = value
             with self.subTest(key=key): self.rejected()
 
@@ -104,10 +121,10 @@ class ExceptionGuardTests(unittest.TestCase):
         self.report['warnings']['notice'][0]['advisory']['id'] = 'RUSTSEC-2099-9999'
         self.report['warnings']['notice'][0]['advisory']['informational'] = 'notice'
         self.rejected()
-        self.report = gate.read_json(HERE/'fixtures/cargo-audit-alpha3.json')
+        self.report = self.fixture_report()
         self.report['vulnerabilities']['found'] = False
         self.rejected()
-        self.report = gate.read_json(HERE/'fixtures/cargo-audit-alpha3.json')
+        self.report = self.fixture_report()
         self.report['lockfile']['dependency-count'] = 0
         self.rejected()
 
@@ -202,6 +219,12 @@ class ExceptionGuardTests(unittest.TestCase):
         self.policy['approval']['approved'] = False
         self.assertIn('no RSA exception', self.run_gate(status=0))
         self.rejected(status=1)
+
+    def test_real_changed_checkout_cannot_reuse_recorded_alpha3_exception(self):
+        report = gate.read_json(HERE/'fixtures/cargo-audit-alpha3.json')
+        policy = gate.read_json(PROJECT/'.security/rsa-alpha3-policy.json')
+        with self.assertRaises(gate.ReviewRequired):
+            gate.evaluate(PROJECT, report, 1, b'', policy, now=self.now)
 
 
 if __name__ == '__main__':
