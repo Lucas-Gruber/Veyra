@@ -69,6 +69,7 @@ export async function installConnectedVault(page: Page, folderFixture?: { folder
           }
           if (command === 'plugin:event|unlisten') return
           if (command === 'hide_quick_access') return
+          if (command === 'open_website') return
           if (command === 'session_status') return status()
           if (command === 'list_metadata' || command === 'sync_vault') return snapshot()
           if (command === 'lock_vault') {

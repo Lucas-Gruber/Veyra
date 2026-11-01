@@ -133,9 +133,9 @@ const actionList = [
         <div class="quick-search"><Search :size="23" :stroke-width="1.7"/><input ref="searchInput" v-model="query" placeholder="Where do you want to go?" aria-label="Search vault" autocomplete="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-controls="quick-results" :aria-expanded="results.length > 0" :aria-activedescendant="current ? `quick-${current.id}` : undefined"><kbd @click="close">esc</kbd></div>
         <div class="quick-context"><span>{{ query ? `${results.length} MATCH${results.length === 1 ? '' : 'ES'}` : 'YOUR EVERYDAY ESSENTIALS' }}</span><span class="demo-dot">{{ vault.demo.value ? 'DEMO VAULT' : 'CONNECTED' }}</span></div>
         <div id="quick-results" class="quick-results" role="listbox" aria-label="Matching items">
-          <button v-for="(item, index) in results" :id="`quick-${item.id}`" :key="item.id" :class="['quick-result', { selected: selected === index }]" role="option" :aria-selected="selected === index" @mousemove="selected = index" @click="run(prefs.defaultAction, item)">
-            <ItemIcon :item="item"/><span class="quick-result-text"><strong><template v-for="(segment, i) in highlightSegments(item.name, query)" :key="i"><mark v-if="segment.match">{{ segment.text }}</mark><template v-else>{{ segment.text }}</template></template></strong><small>{{ item.username }}</small></span><span class="quick-domain">{{ item.domain }}</span><CornerDownLeft v-if="selected === index" :size="15" class="quick-enter"/>
-          </button>
+          <div v-for="(item, index) in results" :id="`quick-${item.id}`" :key="item.id" :class="['quick-result', { selected: selected === index }]" role="option" :aria-selected="selected === index" tabindex="-1" @mousemove="selected = index" @click="run(prefs.defaultAction, item)">
+            <ItemIcon :item="item"/><span class="quick-result-text"><strong><template v-for="(segment, i) in highlightSegments(item.name, query)" :key="i"><mark v-if="segment.match">{{ segment.text }}</mark><template v-else>{{ segment.text }}</template></template></strong><small>{{ item.username }}</small></span><span class="quick-domain">{{ item.domain }}</span><button v-if="item.kind === 'login' && item.url" class="quick-open-button" :aria-label="`Open website: ${item.name}`" title="Open website" @click.stop="run('website', item)"><ArrowUpRight :size="17"/></button><CornerDownLeft v-if="selected === index" :size="15" class="quick-enter"/>
+          </div>
           <div v-if="!results.length" class="quick-empty"><Search :size="27"/><h3>No paths found.</h3><p>Try a name, domain, or a few letters.</p></div>
         </div>
         <div v-if="actions && current" class="quick-actions" aria-label="Item actions"><p>ACTIONS FOR {{ current.name.toUpperCase() }}</p><button v-for="action in actionList" :key="action.action" @click="run(action.action)"><component :is="action.icon" :size="16"/>{{ action.label }}<kbd>{{ action.key }}</kbd></button><p class="action-hint">Ctrl U edits text while searching; use the action menu to copy username. Autofill is planned; the website opens normally.</p></div>
@@ -144,3 +144,8 @@ const actionList = [
     </section>
   </div>
 </template>
+
+<style scoped>
+.quick-open-button { flex-shrink: 0; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 6px; color: var(--muted); }
+.quick-open-button:hover, .quick-open-button:focus-visible { color: var(--accent); background: var(--accent-bg); }
+</style>
