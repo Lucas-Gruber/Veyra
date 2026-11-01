@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "shortcuts",
+  "description": "Only the main local window can inspect and configure the single desktop Quick Access shortcut. Arbitrary plugin handlers are not exposed.",
+  "windows": ["main"],
+  "permissions": ["allow-quick-access-shortcut-status", "allow-configure-quick-access-shortcut"]
+}

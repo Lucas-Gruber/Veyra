@@ -1,6 +1,7 @@
 mod clipboard;
 mod demo;
 mod quick_launch;
+mod shortcuts;
 mod session;
 mod updates;
 mod urls;
@@ -683,11 +684,15 @@ pub fn run() {
         .manage(Session::default())
         .manage(ClipboardService::default())
         .manage(updates::UpdateService::default())
+        .manage(shortcuts::ShortcutService::default())
         .setup(move |app| {
+            shortcuts::initialize(app.handle());
             startup.attach(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            shortcuts::quick_access_shortcut_status,
+            shortcuts::configure_quick_access_shortcut,
             updates::app_info,
             updates::check_for_updates,
             updates::open_release_page,

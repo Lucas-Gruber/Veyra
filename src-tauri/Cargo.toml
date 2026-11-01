@@ -17,6 +17,7 @@ tauri-build = { version = "2.7.4", features = [] }
 [dependencies]
 tauri = { version = "2.12.5", features = [] }
 tauri-plugin-opener = "2.7.2"
+tauri-plugin-global-shortcut = "=2.4.1"
 arboard = { version = "3.7.0", default-features = false, features = ["wayland-data-control"] }
 serde = { version = "1.0.229", features = ["derive"] }
 url = "2.5.8"
@@ -36,6 +37,8 @@ bitwarden-api-api = { git = "https://github.com/bitwarden/sdk-internal", rev = "
 
 [target.'cfg(target_os = "linux")'.dependencies]
 zbus = "=5.19.0"
+ashpd = { version = "=0.13.13", features = ["global_shortcuts"] }
+futures-util = "=0.3.34"
 
 
 [features]

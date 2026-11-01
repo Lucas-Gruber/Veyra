@@ -1,6 +1,8 @@
 fn main() {
     let manifest = tauri_build::AppManifest::new().commands(&[
         "app_info",
+        "quick_access_shortcut_status",
+        "configure_quick_access_shortcut",
         "check_for_updates",
         "open_release_page",
         "session_status",
