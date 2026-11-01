@@ -378,8 +378,15 @@ impl Vaultwarden {
                     {
                         return Err(VaultError::new("move_incomplete", "The collection change was accepted but could not be refreshed. Folder assignment was not attempted; synchronize and inspect the item."));
                     }
+                    // Collection assignment refreshed the vault. Preserve any
+                    // favorite change observed in that new snapshot and recheck
+                    // current permissions before the second management write.
+                    let current = self.editable_view(&item.id, false).await.map_err(|error| {
+                        if error.code == "session_expired" { error }
+                        else { VaultError::new("move_incomplete", "Collection assignment completed, but the entry can no longer be changed. Folder assignment was not attempted.") }
+                    })?;
                     return self
-                        .assign_folder(&item.id, folder_id, source.0.favorite)
+                        .assign_folder(&item.id, folder_id, current.0.favorite)
                         .await;
                 }
                 self.require_copyable(&item.id, &source.0)?;
@@ -471,6 +478,9 @@ impl Vaultwarden {
                     .ok_or_else(invalid_response)?
                     .to_owned();
                 check_id(&new_id)?;
+                if (direct_share && new_id != item.id) || (!direct_share && new_id == item.id) {
+                    return Err(VaultError::new("write_uncertain", "The server returned an unexpected entry ID. Synchronize and inspect the vault before trying again."));
+                }
                 *destination_id = Some(new_id.clone());
                 if self.refresh_after_write().await? {
                     if moving && !direct_share {
@@ -478,11 +488,16 @@ impl Vaultwarden {
                     }
                     return Ok(true);
                 }
-                let copied = self.decrypted_view(&new_id).await.map_err(|error| {
-                    if error.code == "session_expired" { return error; }
-                    if direct_share { VaultError::new("move_verification_failed", "The server accepted the owner change, but the destination could not be verified. Synchronize and inspect the item before another change.") }
-                    else { retained_copy(false) }
-                })?;
+                let copied = match self.decrypted_view(&new_id).await {
+                    Ok(copied) => copied,
+                    Err(error) => {
+                        self.write_needs_sync = true;
+                        if error.code == "session_expired" {
+                            return Err(error);
+                        }
+                        return Err(VaultError::new("copy_verification_failed", "The server accepted the change, but the destination could not be verified. Synchronize and inspect the vault before another change."));
+                    }
+                };
                 if !same_payload(&target.0, &copied.0)
                     || copied.0.organization_id.map(|id| id.to_string()) != *organization_id
                     || copied.0.folder_id.map(|id| id.to_string()) != *folder_id
@@ -494,8 +509,8 @@ impl Vaultwarden {
                         .collect::<HashSet<_>>()
                         != collection_ids.iter().cloned().collect::<HashSet<_>>()
                 {
+                    self.write_needs_sync = true;
                     if direct_share {
-                        self.write_needs_sync = true;
                         return Err(VaultError::new("move_verification_failed", "The server accepted the owner change, but the destination did not match. Synchronize and inspect the item before another change."));
                     }
                     return Err(VaultError::new("copy_verification_failed", "The destination could not be fully verified. The source was retained; inspect both entries before retrying."));
@@ -642,6 +657,132 @@ mod tests {
             .unwrap()
     }
 
+    fn response_sequence(bodies: Vec<Vec<u8>>) -> (Url, std::thread::JoinHandle<()>) {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let handle = std::thread::spawn(move || {
+            use std::io::{Read, Write};
+            for body in bodies {
+                let deadline = std::time::Instant::now() + Duration::from_secs(15);
+                let mut stream = loop {
+                    match listener.accept() {
+                        Ok((stream, _)) => break stream,
+                        Err(error) if error.kind() == std::io::ErrorKind::WouldBlock && std::time::Instant::now() < deadline => std::thread::sleep(Duration::from_millis(10)),
+                        Err(error) => panic!("Synthetic response sequence did not receive the expected request: {error}"),
+                    }
+                };
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
+                let mut bytes = Vec::new();
+                let mut chunk = [0u8; 4096];
+                let header_end = loop {
+                    let length = stream.read(&mut chunk).unwrap();
+                    assert!(length > 0 && bytes.len() + length <= 1024 * 1024);
+                    bytes.extend_from_slice(&chunk[..length]);
+                    if let Some(end) = bytes.windows(4).position(|part| part == b"\r\n\r\n") {
+                        break end + 4;
+                    }
+                };
+                let header = std::str::from_utf8(&bytes[..header_end]).unwrap();
+                let content_length = header
+                    .lines()
+                    .find_map(|line| {
+                        line.split_once(':')
+                            .filter(|(name, _)| name.eq_ignore_ascii_case("content-length"))
+                            .map(|(_, length)| length.trim().parse::<usize>().unwrap())
+                    })
+                    .unwrap_or(0);
+                assert!(content_length <= 1024 * 1024);
+                while bytes.len() < header_end + content_length {
+                    let length = stream.read(&mut chunk).unwrap();
+                    assert!(length > 0);
+                    bytes.extend_from_slice(&chunk[..length]);
+                }
+                write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len()).unwrap();
+                stream.write_all(&body).unwrap();
+            }
+        });
+        (format!("http://{address}/").parse().unwrap(), handle)
+    }
+
+    #[tokio::test]
+    #[ignore = "requires dedicated disposable Vaultwarden fixtures"]
+    async fn actual_vaultwarden_copy_verification_failures_gate_remaining_writes() {
+        let mut vault = fixture().await;
+        for missing in [true, false] {
+            let ids: Vec<_> = vault
+                .items
+                .iter()
+                .filter(|i| {
+                    !i.deleted
+                        && i.organization_id.is_none()
+                        && !vault.management_unsupported.contains(&i.id)
+                })
+                .take(2)
+                .map(|i| i.id.clone())
+                .collect();
+            assert_eq!(ids.len(), 2);
+            let before: Value = vault
+                .http
+                .get(vault.server.join("api/sync").unwrap())
+                .bearer_auth(&*vault.access_token)
+                .send()
+                .await
+                .unwrap()
+                .json()
+                .await
+                .unwrap();
+            let new_id = uuid::Uuid::new_v4().to_string();
+            let mut after = before.clone();
+            if !missing {
+                let mut view = vault.decrypted_view(&ids[0]).await.unwrap();
+                view.0.name.push_str(" (synthetic mismatch)");
+                let encrypted: CipherRequestModel = vault
+                    .client
+                    .vault()
+                    .ciphers()
+                    .encrypt(view.0.clone())
+                    .await
+                    .unwrap()
+                    .into();
+                let encrypted = serde_json::to_value(encrypted).unwrap();
+                let mut copied = before["ciphers"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|v| v["id"].as_str() == Some(ids[0].as_str()))
+                    .unwrap()
+                    .clone();
+                copied["id"] = Value::String(new_id.clone());
+                copied["name"] = encrypted["name"].clone();
+                copied["folderId"] = Value::Null;
+                copied["collectionIds"] = serde_json::json!([]);
+                after["ciphers"].as_array_mut().unwrap().push(copied);
+            }
+            let references = ids.iter().map(|id| reference(&vault, id)).collect();
+            let (mock_url, mock) = response_sequence(vec![
+                serde_json::to_vec(&before).unwrap(),
+                serde_json::to_vec(&serde_json::json!({"id":new_id})).unwrap(),
+                serde_json::to_vec(&after).unwrap(),
+            ]);
+            let original_server = std::mem::replace(&mut vault.server, mock_url);
+            let (results, pending) = manage(&mut vault, references, serde_json::json!({"type":"copy","organizationId":null,"collectionIds":[],"folderId":null})).await;
+            mock.join().unwrap();
+            assert!(pending && vault.needs_sync());
+            assert!(matches!(results[0].status, ManagementStatus::Uncertain));
+            assert_eq!(results[0].item_id.as_deref(), Some(new_id.as_str()));
+            assert_eq!(
+                results[0].error.as_ref().unwrap().code,
+                "copy_verification_failed"
+            );
+            assert!(matches!(results[1].status, ManagementStatus::NotAttempted));
+            vault.server = original_server;
+            vault.sync().await.unwrap();
+        }
+    }
+
     #[tokio::test]
     #[ignore = "requires dedicated disposable Vaultwarden fixtures"]
     async fn actual_vaultwarden_batch_folder_copy_owner_moves_and_partial_results() {
@@ -682,10 +823,9 @@ mod tests {
             .unwrap();
         let folder = result["id"].as_str().unwrap().to_string();
         assert!(!vault.refresh_after_write().await.unwrap());
-        let (id, _) = vault
-            .save_item(super::super::tests::draft("login"))
-            .await
-            .unwrap();
+        let mut draft = super::super::tests::draft("login");
+        draft.favorite = true;
+        let (id, _) = vault.save_item(draft).await.unwrap();
         let mut full = vault.editable_view(&id, false).await.unwrap();
         full.0.fields = Some(vec![bitwarden_vault::FieldView {
             name: Some("Preserved field".into()),
@@ -783,6 +923,12 @@ mod tests {
                 .collection_ids,
             vec![second_collection]
         );
+        let first = reference(&vault, &id);
+        let (results, pending) = manage(&mut vault, vec![first], serde_json::json!({"type":"move","organizationId":org,"collectionIds":[collection],"folderId":null})).await;
+        assert!(!pending && matches!(results[0].status, ManagementStatus::Succeeded));
+        let same_owner = vault.items.iter().find(|i| i.id == id).unwrap();
+        assert!(same_owner.favorite && same_owner.folder_id.is_none());
+        assert_eq!(same_owner.collection_ids, vec![collection]);
         let first = reference(&vault, &id);
         let (results, pending) = manage(&mut vault, vec![first], serde_json::json!({"type":"move","organizationId":null,"collectionIds":[],"folderId":null})).await;
         assert!(!pending && matches!(results[0].status, ManagementStatus::Succeeded));

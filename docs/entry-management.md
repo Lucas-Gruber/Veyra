@@ -36,6 +36,8 @@ existing timestamp tolerance. Known permission/conflict failures are reported pe
 entry. An uncertain dispatched mutation or failed refresh stops the batch, marks
 remaining entries `not_attempted` and blocks further writes until an explicit
 successful synchronization. No dispatched mutation is automatically retried.
+An accepted copy whose destination is missing or differs after synchronization
+also re-enables that write gate and stops the remaining batch.
 Locking cancels pending work and prevents its result from publishing metadata to
 a newer session.
 
@@ -49,3 +51,7 @@ stops the remaining batch and gates subsequent writes. The server and credential
 are disposable synthetic fixtures; see
 [the fixture instructions](../tests/integration/README.md). Passing these checks
 does not approve a release or establish production security.
+
+Controlled write/sync responses also cover missing and content-mismatched
+destinations after accepted copies. They simulate failure states rather than
+claiming those failures were emitted by Vaultwarden itself.
