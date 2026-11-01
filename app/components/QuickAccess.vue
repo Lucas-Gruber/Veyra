@@ -12,6 +12,7 @@ const restored = vault.locked.value ? undefined : restoreQuickAccessSearch(vault
 const query = ref(restored?.query ?? '')
 const selectedItemId = ref<string | null>(restored?.selectedItemId ?? null)
 let dismissed = false
+let interactionEpoch = 0
 const actions = ref(false)
 const searchInput = ref<HTMLInputElement>()
 const dialog = ref<HTMLElement>()
@@ -25,8 +26,10 @@ const selected = computed({
   set: (index: number) => { selectedItemId.value = results.value[index]?.id ?? null },
 })
 const current = computed(() => results.value[selected.value])
-watch(query, () => { selectedItemId.value = null; actions.value = false }, { flush: 'sync' })
+watch(query, () => { interactionEpoch++; selectedItemId.value = null; actions.value = false }, { flush: 'sync' })
+watch(selectedItemId, () => { interactionEpoch++ }, { flush: 'sync' })
 watch([vault.locked, () => vault.session.value.generation], ([locked]) => {
+  interactionEpoch++
   clearQuickAccessSearch()
   reset()
   if (!locked) nextTick(() => searchInput.value?.focus())
@@ -42,6 +45,7 @@ onMounted(async () => {
     unlistenFocus = await listen('quick-access:focus', () => {
       prefs.load()
       if (dismissed) {
+        interactionEpoch++
         const saved = vault.locked.value ? undefined : restoreQuickAccessSearch(vault.session.value.generation)
         query.value = saved?.query ?? ''
         selectedItemId.value = saved?.selectedItemId ?? null
@@ -56,6 +60,7 @@ onBeforeUnmount(() => { dismiss(); unlistenFocus?.(); unlistenBlur?.(); previous
 function reset() { query.value = ''; actions.value = false; selectedItemId.value = null; loginForm.value?.clear() }
 function dismiss() {
   if (!dismissed) {
+    interactionEpoch++
     if (vault.locked.value) clearQuickAccessSearch()
     else rememberQuickAccessSearch(query.value, vault.session.value.generation, current.value?.id ?? null)
     dismissed = true
@@ -69,6 +74,7 @@ async function close() {
 }
 async function run(action: string, item: VaultItem | undefined = current.value) {
   if (!item) return
+  const epoch = interactionEpoch
   if (item.kind !== 'login' && action === 'autofill') action = 'detail'
   if (item.kind !== 'login' && ['username', 'password', 'totp', 'website'].includes(action)) { vault.notify('Credential actions are available for login items. Open the item to view its contents.'); return }
   if (action === 'favorite') { vault.toggleFavorite(item.id); return }
@@ -85,7 +91,7 @@ async function run(action: string, item: VaultItem | undefined = current.value) 
   if (action === 'autofill') succeeded = await vault.openAndFill(item)
   else if (action === 'website') succeeded = await vault.openWebsite(item)
   else succeeded = await vault.copy(item.id, action as 'username' | 'password' | 'totp')
-  if (!succeeded) return
+  if (!succeeded || dismissed || epoch !== interactionEpoch) return
   actions.value = false
   try { await close() }
   catch { vault.notify('Action completed. Could not close Quick Access.') }

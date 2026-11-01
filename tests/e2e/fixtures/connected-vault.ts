@@ -17,6 +17,9 @@ interface FixtureControls {
   emitQuickBlur: () => void
   emitQuickFocus: () => void
   renameItem: (id: string, name: string) => void
+  delayNextFill: boolean
+  pendingFill: boolean
+  releaseFill: () => void
 }
 
 declare global {
@@ -34,6 +37,7 @@ export async function installConnectedVault(page: Page, folderFixture?: { folder
     let nextItem = 0
     let releaseEditor: (() => void) | undefined
     let releaseChange: (() => void) | undefined
+    let releaseFill: (() => void) | undefined
     const callbacks = new Map<number, (event: unknown) => void>()
     const listeners = new Map<string, number[]>()
     const organizations = [{ id: 'org-lantern', name: 'Lantern Guild' }, { id: 'org-river', name: 'River Cooperative' }, { id: 'org-empty', name: 'Empty group' }]
@@ -61,9 +65,10 @@ export async function installConnectedVault(page: Page, folderFixture?: { folder
     const snapshot = () => structuredClone({ session: status(), items: locked ? [] : items, organizations: locked ? [] : organizations, collections: locked ? [] : collections, folders: locked ? [] : folders, unsupportedItems: 0, needsSync })
     const controls: FixtureControls = {
       calls: [], failNextSave: false, delayNextEditor: false, pendingEditor: false, failBatchItem: null, uncertainBatchItem: null,
-      delayNextChange: false, pendingChange: false, replaceAfterDelayedChange: false,
+      delayNextChange: false, pendingChange: false, replaceAfterDelayedChange: false, delayNextFill: false, pendingFill: false,
       releaseEditor() { releaseEditor?.(); releaseEditor = undefined },
       releaseChange() { releaseChange?.(); releaseChange = undefined },
+      releaseFill() { releaseFill?.(); releaseFill = undefined },
       replaceSession() {
         generation++; locked = false
         for (const id of listeners.get('vault:changed') || []) callbacks.get(id)?.({ payload: status() })
@@ -94,7 +99,15 @@ export async function installConnectedVault(page: Page, folderFixture?: { folder
           if (command === 'plugin:event|unlisten') return
           if (command === 'hide_quick_access') return
           if (command === 'open_website') return
-          if (command === 'copy_field' || command === 'begin_browser_fill') return
+          if (command === 'copy_field') return
+          if (command === 'begin_browser_fill') {
+            if (controls.delayNextFill) {
+              controls.delayNextFill = false; controls.pendingFill = true
+              await new Promise<void>(resolve => { releaseFill = resolve })
+              controls.pendingFill = false
+            }
+            return
+          }
           if (command === 'session_status') return status()
           if (command === 'list_metadata' || command === 'sync_vault') return snapshot()
           if (command === 'lock_vault') {
