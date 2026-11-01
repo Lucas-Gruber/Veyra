@@ -10,8 +10,14 @@ const content = ref<HTMLElement>()
 const initialFocus = ref<HTMLButtonElement>()
 watch(tab, () => { if (content.value) content.value.scrollTop = 0 }, { flush: 'post' })
 let previousFocus: HTMLElement | null = null
-onMounted(() => { previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null; initialFocus.value?.focus() })
-onBeforeUnmount(() => previousFocus?.focus())
+let previousDocumentOverflow = ''
+onMounted(() => {
+  previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  previousDocumentOverflow = document.documentElement.style.overflow
+  document.documentElement.style.overflow = 'hidden'
+  initialFocus.value?.focus()
+})
+onBeforeUnmount(() => { document.documentElement.style.overflow = previousDocumentOverflow; previousFocus?.focus() })
 function onKey(event: KeyboardEvent) {
   if (event.key === 'Escape') { event.stopPropagation(); emit('close') }
   if (event.key === 'Tab' && panel.value) {
@@ -23,7 +29,7 @@ function onKey(event: KeyboardEvent) {
 }
 </script>
 <template>
-  <div class="modal-backdrop" @click.self="emit('close')">
+  <div class="modal-backdrop settings-backdrop" @click.self="emit('close')">
     <section ref="panel" class="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-heading" @keydown="onKey">
       <button ref="initialFocus" class="icon-button settings-close" aria-label="Close settings" @click="emit('close')"><X :size="19"/></button>
       <div class="settings-sidebar"><h2 id="settings-heading">Settings</h2><p>Make yourself at home.</p>
@@ -60,12 +66,30 @@ function onKey(event: KeyboardEvent) {
 </template>
 
 <style scoped>
-.settings-dialog { position: relative; height: min(680px, calc(100dvh - 48px)); max-height: calc(100dvh - 48px); min-height: 0; overflow: hidden; }
-.settings-sidebar { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
-.settings-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
-.settings-dialog > .settings-close { position: absolute; top: 16px; right: 16px; z-index: 2; background: var(--bg); }
-@media (max-width: 560px) {
-  .settings-dialog { height: min(720px, calc(100dvh - 40px)); max-height: calc(100dvh - 40px); }
-  .settings-sidebar { max-height: 45%; padding-right: 44px; }
+.settings-backdrop { height: 100dvh; padding: 24px; overflow: hidden; isolation: isolate; }
+.settings-dialog { position: relative; display: grid; grid-template-columns: 210px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); width: min(860px, 100%); height: min(720px, 100%); min-width: 0; min-height: 0; overflow: hidden; border: 1px solid var(--border-strong); border-radius: 14px; background: var(--bg); box-shadow: 0 30px 100px #0005; }
+.settings-sidebar { min-width: 0; min-height: 0; background: var(--sidebar); border-right: 1px solid var(--border); padding: 30px 15px 20px; display: flex; flex-direction: column; }
+.settings-body { min-width: 0; min-height: 0; padding: 40px 34px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; overflow-wrap: anywhere; }
+.settings-dialog > .settings-close { position: absolute; top: 14px; right: 14px; z-index: 2; background: var(--bg); }
+.settings-body :deep(.setting-row) { min-width: 0; flex-wrap: wrap; column-gap: 12px; }
+.settings-body :deep(.setting-row > span:first-child) { min-width: 0; flex-basis: 10rem; }
+.settings-body :deep(.setting-row > :not(:first-child)) { max-width: 100%; }
+.theme-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.theme-option { width: 100%; min-width: 0; }
+.theme-option > span { flex-wrap: wrap; }
+@media (max-width: 680px), (max-height: 560px) {
+  .settings-backdrop { padding: 12px; }
+  .settings-dialog { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .settings-sidebar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 14px 12px 10px; border-right: 0; border-bottom: 1px solid var(--border); }
+  .settings-sidebar h2 { grid-column: 1 / -1; margin: 0 38px 8px 8px; }
+  .settings-sidebar > p, .settings-version { display: none; }
+  .settings-sidebar > button { min-width: 0; justify-content: center; padding: 9px 4px; gap: 6px; text-align: center; overflow-wrap: anywhere; }
+  .settings-body { padding: 28px 22px; }
+}
+@media (max-width: 420px) {
+  .settings-sidebar > button { flex-direction: column; font-size: .75rem; gap: 4px; }
+  .settings-body { padding: 24px 18px; }
+  .theme-options { gap: 8px; }
+  .theme-option > span { row-gap: 4px; }
 }
 </style>

@@ -29,6 +29,17 @@ const selectionAnchor = ref<string>()
 const contextMenu = ref<{ x: number; y: number }>()
 const management = ref<{ mode: ManagementMode; items: VaultItem[] }>()
 const settingsOpen = ref(false)
+let settingsOpener: HTMLElement | null = null
+function openSettings() {
+  settingsOpener = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  settingsOpen.value = true
+}
+async function closeSettings() {
+  settingsOpen.value = false
+  await nextTick()
+  if (settingsOpener?.isConnected) settingsOpener.focus()
+  settingsOpener = null
+}
 const quickOpen = ref(false)
 const editorOpen = ref(false)
 const editingItem = ref<VaultItem>()
@@ -156,7 +167,7 @@ function onKeyboard(event: KeyboardEvent) {
   if (editorOpen.value || management.value || contextMenu.value) return
   if (matches('openQuick')) { event.preventDefault(); if (!settingsOpen.value) void openQuick(); return }
   if (settingsOpen.value || quickOpen.value || quickStandalone.value) return
-  if (matches('settings')) { event.preventDefault(); settingsOpen.value = true; return }
+  if (matches('settings')) { event.preventDefault(); openSettings(); return }
   if (matches('search')) { event.preventDefault(); searchInput.value?.focus(); return }
   if (event.key === 'Escape') { query.value = ''; hasSelected.value = false; return }
   if (event.target instanceof HTMLElement && (event.target.isContentEditable || event.target.closest('input, select, textarea'))) return
@@ -213,14 +224,14 @@ onBeforeUnmount(() => { stopAutomaticUpdateChecks?.(); window.removeEventListene
     <div :class="['veyra-app', { 'theme-light': isLight, 'surface-glass': prefs.surface === 'glass', 'standalone-app': quickStandalone }]">
       <QuickAccess v-if="quickStandalone" standalone @open-item="openDetail"/>
       <template v-else>
-        <div class="app-frame">
+        <div class="app-frame" :inert="settingsOpen">
           <aside :class="['sidebar', { 'mobile-open': sidebarOpen }]" aria-label="Main navigation">
             <div class="brand"><BrandMark/><span>Veyra</span><span class="preview-badge">PREVIEW</span><button class="icon-button mobile-sidebar-close" aria-label="Close navigation" @click="sidebarOpen = false"><X :size="18"/></button></div>
             <VaultSwitcher v-model="vaultScope"/>
             <div class="navigation-section"><button v-for="entry in nav" :key="entry.label" :class="['nav-item', { active: activeFolder === null && activeView === entry.label }]" @click="selectView(entry.label)"><component :is="entry.icon" :size="18" :stroke-width="1.7"/><span>{{ entry.label }}</span><span v-if="!vault.locked.value && count(entry.label)" class="nav-count">{{ count(entry.label) }}</span></button></div>
             <div class="navigation-section"><p class="nav-heading">YOUR VAULT</p><button v-for="entry in types" :key="entry.label" :class="['nav-item', { active: activeFolder === null && activeView === entry.label }]" @click="selectView(entry.label)"><component :is="entry.icon" :size="18" :stroke-width="1.7"/><span>{{ entry.label }}</span><span v-if="!vault.locked.value && count(entry.label)" class="nav-count">{{ count(entry.label) }}</span></button></div>
             <div class="navigation-section"><p class="nav-heading">ORGANIZE <button class="icon-button" aria-label="About folders" @click="vault.notify('Folders are synchronized from Vaultwarden. Select items and choose Assign folder from their context menu.')"><Plus :size="14"/></button></p><FolderTree v-if="!vault.locked.value" :folders="vault.folders.value" :items="scopedItems" :selected-path="activeFolder" @select="selectFolder"/><button :class="['nav-item', { active: activeFolder === null && activeView === 'Collections' }]" @click="selectView('Collections')"><Layers :size="17" :stroke-width="1.7"/><span>Collections</span></button></div>
-            <div class="sidebar-bottom"><button :class="['nav-item', { active: activeFolder === null && activeView === 'Trash' }]" @click="selectView('Trash')"><Trash2 :size="17" :stroke-width="1.7"/><span>Trash</span></button><button class="nav-item" aria-label="Settings" @click="settingsOpen = true"><Settings2 :size="17" :stroke-width="1.7"/><span>Settings</span><kbd>{{ prefs.shortcuts.settings }}</kbd></button><div class="sidebar-divider"/><button class="quick-launch" @click="openQuick"><span class="quick-launch-icon"><Command :size="18"/></span><span><strong>Quick Access</strong><small>Your vault, a little closer.</small></span><ArrowUpRight :size="15"/></button><div class="sidebar-status"><span><ShieldCheck :size="13"/>{{ vault.locked.value ? 'Vault is locked' : vault.demo.value ? 'Demo vault · in memory' : 'Connected' }}</span><button v-if="!vault.locked.value" class="icon-button" aria-label="Lock vault" :title="`Lock vault · ${prefs.shortcuts.lock}`" @click="vault.lock"><LockKeyhole :size="15"/></button></div></div>
+            <div class="sidebar-bottom"><button :class="['nav-item', { active: activeFolder === null && activeView === 'Trash' }]" @click="selectView('Trash')"><Trash2 :size="17" :stroke-width="1.7"/><span>Trash</span></button><button class="nav-item" aria-label="Settings" @click="openSettings"><Settings2 :size="17" :stroke-width="1.7"/><span>Settings</span><kbd>{{ prefs.shortcuts.settings }}</kbd></button><div class="sidebar-divider"/><button class="quick-launch" @click="openQuick"><span class="quick-launch-icon"><Command :size="18"/></span><span><strong>Quick Access</strong><small>Your vault, a little closer.</small></span><ArrowUpRight :size="15"/></button><div class="sidebar-status"><span><ShieldCheck :size="13"/>{{ vault.locked.value ? 'Vault is locked' : vault.demo.value ? 'Demo vault · in memory' : 'Connected' }}</span><button v-if="!vault.locked.value" class="icon-button" aria-label="Lock vault" :title="`Lock vault · ${prefs.shortcuts.lock}`" @click="vault.lock"><LockKeyhole :size="15"/></button></div></div>
           </aside>
           <main :class="['workspace', { 'mobile-detail-open': hasSelected }]">
             <header class="workspace-header"><button class="icon-button mobile-menu" aria-label="Open navigation" @click="sidebarOpen = !sidebarOpen"><Menu :size="20"/></button><div class="breadcrumbs"><span>{{ vaultName }}</span><span>/</span><strong>{{ viewTitle }}</strong></div><div class="header-actions"><span class="demo-pill"><span/>{{ vault.connected.value ? 'Connected' : vault.demo.value ? 'Demo mode' : 'Not connected' }}</span><button class="icon-button" aria-label="About this preview" @click="vault.notify('Veyra integration preview · personal and organization vaults. Independent security review is pending; offline unlock is unavailable.')"><CircleHelp :size="18"/></button><span class="window-divider"/><button class="icon-button" aria-label="Open Quick Access" @click="openQuick"><Command :size="18"/></button></div></header>
@@ -245,11 +256,11 @@ onBeforeUnmount(() => { stopAutomaticUpdateChecks?.(); window.removeEventListene
             </template>
           </main>
         </div>
-        <footer class="app-statusbar"><span><span class="status-dot"/>Integration preview<span class="statusbar-divider">·</span>{{ vault.connected.value ? 'Connected in memory' : 'No server connected' }}</span><span><LockKeyhole :size="12"/>{{ vault.locked.value ? 'Locked · signed out' : vault.demo.value ? 'Synthetic data only' : 'No offline cache' }}<span class="statusbar-divider">·</span><button @click="openQuick">Quick Access <kbd>{{ prefs.shortcuts.openQuick }}</kbd></button></span></footer>
+        <footer class="app-statusbar" :inert="settingsOpen"><span><span class="status-dot"/>Integration preview<span class="statusbar-divider">·</span>{{ vault.connected.value ? 'Connected in memory' : 'No server connected' }}</span><span><LockKeyhole :size="12"/>{{ vault.locked.value ? 'Locked · signed out' : vault.demo.value ? 'Synthetic data only' : 'No offline cache' }}<span class="statusbar-divider">·</span><button @click="openQuick">Quick Access <kbd>{{ prefs.shortcuts.openQuick }}</kbd></button></span></footer>
         <QuickAccess v-if="quickOpen" @close="quickOpen = false" @open-item="openDetail"/>
         <ItemContextMenu v-if="contextMenu" :x="contextMenu.x" :y="contextMenu.y" :actions="contextActions" @close="contextMenu = undefined" @select="contextAction"/>
         <ManageItemsDialog v-if="management" :items="management.items" :mode="management.mode" @close="management = undefined"/>
-        <SettingsDialog v-if="settingsOpen" @close="settingsOpen = false"/>
+        <SettingsDialog v-if="settingsOpen" @close="closeSettings"/>
         <ItemEditor v-if="editorOpen" :item="editingItem" :organization-id="['all', 'personal'].includes(vaultScope) ? null : vaultScope" @close="editorOpen = false; editingItem = undefined" @saved="openDetail"/>
       </template>
       <Transition name="toast"><div v-if="vault.feedback.value" class="feedback-toast" role="status" aria-live="polite"><Check :size="16"/>{{ vault.feedback.value }}</div></Transition>
