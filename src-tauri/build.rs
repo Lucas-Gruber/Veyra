@@ -24,6 +24,8 @@ fn main() {
         "browser_companion_status",
         "begin_browser_fill",
         "open_main_item",
+        "show_main_window",
+        "desktop_integration_status",
     ]);
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(manifest))
         .expect("Tauri build configuration failed");

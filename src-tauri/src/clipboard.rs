@@ -84,7 +84,9 @@ enum Request {
         value: Zeroizing<String>,
         reply: Sender<SafeResult>,
     },
-    Clear,
+    Clear {
+        reply: Option<Sender<()>>,
+    },
 }
 
 pub struct ClipboardService {
@@ -111,7 +113,17 @@ impl ClipboardService {
     }
 
     pub fn clear(&self) {
-        let _ = self.sender.send(Request::Clear);
+        let _ = self.sender.send(Request::Clear { reply: None });
+    }
+
+    /// Give the worker time to clear an app-owned value before orderly exit.
+    /// The operating system and clipboard history still remain outside our control.
+    pub fn clear_and_wait(&self, timeout: Duration) -> bool {
+        let (reply, response) = mpsc::channel();
+        self.sender
+            .send(Request::Clear { reply: Some(reply) })
+            .is_ok()
+            && response.recv_timeout(timeout).is_ok()
     }
 }
 
@@ -138,9 +150,12 @@ fn clipboard_worker(receiver: Receiver<Request>) {
                     let _ = reply.send(manager.write(value, Instant::now()));
                 }
             }
-            Ok(Request::Clear) => {
+            Ok(Request::Clear { reply }) => {
                 if let Some(manager) = clipboard.as_mut() {
                     manager.clear_if_unchanged();
+                }
+                if let Some(reply) = reply {
+                    let _ = reply.send(());
                 }
             }
             Err(mpsc::RecvTimeoutError::Disconnected) => break,
@@ -212,5 +227,11 @@ mod tests {
         assert_eq!(manager.backend.0, "second");
         manager.expire(now + Duration::from_secs(50));
         assert_eq!(manager.backend.0, "");
+    }
+
+    #[test]
+    fn shutdown_clear_acknowledges_without_initializing_a_native_clipboard() {
+        let service = ClipboardService::default();
+        assert!(service.clear_and_wait(Duration::from_secs(1)));
     }
 }

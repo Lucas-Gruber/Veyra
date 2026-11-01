@@ -104,6 +104,7 @@ pub async fn begin_browser_fill(
     item_id: String,
     expected_generation: u64,
 ) -> Result<(), VaultError> {
+    crate::tray::require_running(&app)?;
     let (generation, vault, cancellation) = crate::connected(&app.state::<crate::Session>())?;
     if generation != expected_generation {
         return Err(error(
@@ -128,6 +129,7 @@ pub async fn begin_browser_fill(
     let opened = {
         let session = app.state::<crate::Session>();
         let state = session.0.lock().map_err(|_| crate::unavailable())?;
+        crate::tray::require_running(&app)?;
         state.require_generation(generation)?;
         state.status.require_unlocked()?;
         if !state
@@ -384,6 +386,8 @@ mod linux {
                         .0
                         .lock()
                         .map_err(|_| io::Error::other("Unavailable"))?;
+                    crate::tray::require_running(app)
+                        .map_err(|_| io::Error::from(io::ErrorKind::PermissionDenied))?;
                     state
                         .status
                         .require_unlocked()
@@ -444,6 +448,8 @@ mod linux {
                     .0
                     .lock()
                     .map_err(|_| io::Error::other("Unavailable"))?;
+                crate::tray::require_running(app)
+                    .map_err(|_| io::Error::from(io::ErrorKind::PermissionDenied))?;
                 state
                     .require_generation(generation)
                     .and_then(|()| state.status.require_unlocked())
@@ -473,6 +479,8 @@ mod linux {
                     .0
                     .lock()
                     .map_err(|_| io::Error::other("Unavailable"))?;
+                crate::tray::require_running(app)
+                    .map_err(|_| io::Error::from(io::ErrorKind::PermissionDenied))?;
                 state
                     .status
                     .require_unlocked()

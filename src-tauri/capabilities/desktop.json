@@ -20,6 +20,8 @@
     "allow-browser-companion-status",
     "allow-begin-browser-fill",
     "allow-open-main-item",
+    "allow-show-main-window",
+    "allow-desktop-integration-status",
     "allow-login-vault",
     "allow-list-metadata",
     "allow-sync-vault",

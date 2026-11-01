@@ -4,6 +4,7 @@ mod demo;
 mod quick_launch;
 mod session;
 mod shortcuts;
+mod tray;
 mod updates;
 mod urls;
 mod vaultwarden;
@@ -98,6 +99,7 @@ async fn login_vault(
     let (generation, cancellation, retired, locked_status) = {
         let session = app.state::<Session>();
         let mut state = session.0.lock().map_err(|_| unavailable())?;
+        tray::require_running(&app)?;
         let retired = state.invalidate();
         (
             state.status.generation,
@@ -116,6 +118,7 @@ async fn login_vault(
     };
     let session = app.state::<Session>();
     let mut state = session.0.lock().map_err(|_| unavailable())?;
+    tray::require_running(&app)?;
     state.require_generation(generation)?;
     match result {
         Ok(vault) => {
@@ -157,6 +160,7 @@ async fn unlock_demo(app: tauri::AppHandle) -> Result<SessionStatus, VaultError>
     let (retired, status) = {
         let session = app.state::<Session>();
         let mut state = session.0.lock().map_err(|_| unavailable())?;
+        tray::require_running(&app)?;
         let retired = state.invalidate();
         state.status.locked = false;
         state.status.mode = "demo";
@@ -492,6 +496,7 @@ async fn read_field(
     let (generation, mode, vault, cancellation) = {
         let session = app.state::<Session>();
         let state = session.0.lock().map_err(|_| unavailable())?;
+        tray::require_running(app)?;
         state.status.require_unlocked()?;
         (
             state.status.generation,
@@ -524,6 +529,7 @@ async fn read_field(
     };
     let session = app.state::<Session>();
     let state = session.0.lock().map_err(|_| unavailable())?;
+    tray::require_running(app)?;
     state.require_generation(generation)?;
     state.status.require_unlocked()?;
     Ok((generation, value))
@@ -541,6 +547,7 @@ async fn copy_field(
         // Serialize committing the clipboard value with locking. A later lock queues
         // conditional clearing immediately after this bounded write completes.
         let state = session.0.lock().map_err(|_| unavailable())?;
+        tray::require_running(&app)?;
         state.require_generation(generation)?;
         state.status.require_unlocked()?;
         app.state::<ClipboardService>().write(value).map_err(|_| {
@@ -579,6 +586,7 @@ async fn reveal_field(
 
 #[tauri::command]
 fn show_quick_access(app: tauri::AppHandle) -> Result<(), VaultError> {
+    tray::require_running(&app)?;
     let window = if let Some(window) = app.get_webview_window("quick-access") {
         window
     } else {
@@ -658,22 +666,39 @@ async fn open_main_item(app: tauri::AppHandle, item_id: String) -> Result<(), Va
             return Err(error("item_not_found", "This item is unavailable."));
         }
     }
+    show_main_window(app.clone())?;
+    let main = app
+        .get_webview_window("main")
+        .ok_or_else(|| error("window_unavailable", "The main window is unavailable."))?;
+    main.emit("vault:open-item", item_id).map_err(|_| {
+        error(
+            "window_unavailable",
+            "The selected item could not be opened.",
+        )
+    })?;
+    Ok(())
+}
+
+/// Window restoration does not grant access to a vault or require an item.
+#[tauri::command]
+fn show_main_window(app: tauri::AppHandle) -> Result<(), VaultError> {
+    tray::require_running(&app)?;
     let main = app
         .get_webview_window("main")
         .ok_or_else(|| error("window_unavailable", "The main window is unavailable."))?;
     main.show()
         .map_err(|_| error("window_unavailable", "The main window could not be shown."))?;
+    main.unminimize().map_err(|_| {
+        error(
+            "window_unavailable",
+            "The main window could not be restored.",
+        )
+    })?;
     hide_quick_access(app.clone())?;
     main.set_focus().map_err(|_| {
         error(
             "window_focus_denied",
             "The compositor did not allow focusing the main window.",
-        )
-    })?;
-    main.emit("vault:open-item", item_id).map_err(|_| {
-        error(
-            "window_unavailable",
-            "The selected item could not be opened.",
         )
     })?;
     Ok(())
@@ -770,9 +795,14 @@ pub fn run() {
         .manage(ClipboardService::default())
         .manage(updates::UpdateService::default())
         .manage(shortcuts::ShortcutService::default())
+        .manage(tray::DesktopService::default())
+        .on_window_event(tray::window_event)
         .setup(move |app| {
             browser_bridge::initialize(app.handle());
             shortcuts::initialize(app.handle());
+            if tray::initialize(app.handle()).is_err() {
+                eprintln!("Veyra could not initialize its tray. See Settings → Security for desktop integration status.");
+            }
             startup.attach(app.handle());
             Ok(())
         })
@@ -800,11 +830,16 @@ pub fn run() {
             show_quick_access,
             hide_quick_access,
             open_website,
-            open_main_item
+            open_main_item,
+            show_main_window,
+            tray::desktop_integration_status
         ])
-        .run(context);
-    if result.is_err() {
-        eprintln!("Veyra could not initialize the desktop runtime.");
-        std::process::exit(1);
+        .build(context);
+    match result {
+        Ok(app) => app.run(tray::run_event),
+        Err(_) => {
+            eprintln!("Veyra could not initialize the desktop runtime.");
+            std::process::exit(1);
+        }
     }
 }

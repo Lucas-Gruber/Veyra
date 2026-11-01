@@ -13,7 +13,9 @@
     "--share=ipc",
     "--device=dri",
     "--own-name=io.github.LucasGruber.Veyra.Launcher",
-    "--talk-name=io.github.LucasGruber.Veyra.Launcher"
+    "--talk-name=io.github.LucasGruber.Veyra.Launcher",
+    "--talk-name=org.kde.StatusNotifierWatcher",
+    "--own-name=org.kde.StatusNotifierItem-*"
   ],
   "modules": [
     {

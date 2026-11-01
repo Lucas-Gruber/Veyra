@@ -49,6 +49,8 @@ jobs:
       - run: cargo test --locked --manifest-path src-tauri/Cargo.toml
       - name: Test single-instance forwarding on a private session bus
         run: dbus-run-session -- cargo test --locked --manifest-path src-tauri/Cargo.toml forwards_launches_before_any_gtk_runtime_and_releases_the_name -- --ignored
+      - name: Verify tray registration and host detection without a desktop session
+        run: env -u DISPLAY -u WAYLAND_DISPLAY dbus-run-session -- cargo test --locked --manifest-path src-tauri/Cargo.toml tray_host_status -- --ignored
       - name: Verify desktop launcher in isolated XDG directories
         run: python3 -m unittest discover -s tests/desktop -v
       - run: pnpm exec playwright install --with-deps chromium

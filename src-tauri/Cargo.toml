@@ -16,7 +16,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.7.4", features = [] }
 
 [dependencies]
-tauri = { version = "2.12.5", features = [] }
+tauri = { version = "2.12.5", features = ["tray-icon"] }
 tauri-plugin-opener = "2.7.2"
 tauri-plugin-global-shortcut = "=2.4.1"
 arboard = { version = "3.7.0", default-features = false, features = ["wayland-data-control"] }
@@ -41,6 +41,9 @@ libc = "0.2"
 zbus = "=5.19.0"
 ashpd = { version = "=0.13.13", features = ["global_shortcuts"] }
 futures-util = "=0.3.34"
+# Use the published Rust StatusNotifier backend instead of runtime-loaded
+# AppIndicator libraries, including inside the existing GNOME Flatpak runtime.
+tray-icon = { version = "=0.25.1", default-features = false, features = ["ksni"] }
 
 
 [features]
