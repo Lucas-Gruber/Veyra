@@ -1,11 +1,13 @@
 import type { Page } from '@playwright/test'
-import type { ItemDraft, VaultItem } from '../../../app/types/vault'
+import type { ItemDraft, ManagedItemResult, ManagementOperation, VaultItem } from '../../../app/types/vault'
 
 interface FixtureControls {
   calls: { command: string; args?: Record<string, unknown> }[]
   failNextSave: boolean
   delayNextEditor: boolean
   pendingEditor: boolean
+  failBatchItem: string | null
+  uncertainBatchItem: string | null
   releaseEditor: () => void
   emitQuickBlur: () => void
 }
@@ -20,6 +22,7 @@ export async function installConnectedVault(page: Page, folderFixture?: { folder
   await page.addInitScript((folderFixture) => {
     let generation = 1
     let locked = false
+    let needsSync = false
     let nextCallback = 0
     let nextItem = 0
     let releaseEditor: (() => void) | undefined
@@ -47,9 +50,9 @@ export async function installConnectedVault(page: Page, folderFixture?: { folder
     }
     const drafts: Record<string, ItemDraft> = Object.fromEntries(items.map(item => [item.id, { id: item.id, revision: item.revision || null, organizationId: item.organizationId || null, collectionIds: item.collectionIds || [], kind: item.kind, name: item.name, favorite: item.favorite, notes: 'Synthetic editor note', username: item.username, password: 'synthetic-editor-password', totp: '', uri: item.url, card: {}, identity: {} }]))
     const status = () => ({ locked, generation, mode: locked ? 'disconnected' : 'connected', lastSync: locked ? null : '2026-10-29T00:00:00Z' })
-    const snapshot = () => structuredClone({ session: status(), items: locked ? [] : items, organizations: locked ? [] : organizations, collections: locked ? [] : collections, folders: locked ? [] : folders, unsupportedItems: 0, needsSync: false })
+    const snapshot = () => structuredClone({ session: status(), items: locked ? [] : items, organizations: locked ? [] : organizations, collections: locked ? [] : collections, folders: locked ? [] : folders, unsupportedItems: 0, needsSync })
     const controls: FixtureControls = {
-      calls: [], failNextSave: false, delayNextEditor: false, pendingEditor: false,
+      calls: [], failNextSave: false, delayNextEditor: false, pendingEditor: false, failBatchItem: null, uncertainBatchItem: null,
       releaseEditor() { releaseEditor?.(); releaseEditor = undefined },
       emitQuickBlur() { for (const id of listeners.get('quick-access:blur') || []) callbacks.get(id)?.({ payload: null }) },
     }
@@ -108,6 +111,30 @@ export async function installConnectedVault(page: Page, folderFixture?: { folder
             if (request.action === 'favorite') { item.favorite = !!request.favorite; drafts[item.id]!.favorite = item.favorite }
             else { item.deleted = request.action === 'trash'; item.canRestore = item.deleted; item.canDelete = !item.deleted }
             return { itemId: item.id, refreshPending: false, snapshot: snapshot() }
+          }
+          if (command === 'manage_items') {
+            if (args?.expectedGeneration !== generation || locked || needsSync) throw { code: 'locked', message: 'Synthetic vault unavailable.' }
+            const request = args.request as { items: { id: string; revision: string }[]; operation: ManagementOperation }
+            const results: ManagedItemResult[] = []
+            for (const source of request.items) {
+              if (needsSync) { results.push({ sourceId: source.id, itemId: null, status: 'not_attempted', error: null }); continue }
+              const item = items.find(item => item.id === source.id)
+              if (!item || item.readOnly || controls.failBatchItem === source.id || controls.uncertainBatchItem === source.id) {
+                needsSync = controls.uncertainBatchItem === source.id
+                results.push({ sourceId: source.id, itemId: null, status: needsSync ? 'uncertain' : 'failed', error: { code: 'fixture_failure', message: needsSync ? 'Synthetic response lost. Synchronize before retrying.' : 'Synthetic item rejected.' } }); continue
+              }
+              let target = item
+              const operation = request.operation
+              if (operation.type === 'copy') {
+                target = structuredClone(item); target.id = `copy-fixture-${++nextItem}`; target.name += ' (copy)'; items.push(target)
+                drafts[target.id] = { ...structuredClone(drafts[item.id]!), id: target.id, name: target.name }
+              }
+              if (operation.type === 'copy' || operation.type === 'move') target.organizationId = operation.organizationId
+              if ('collectionIds' in operation) target.collectionIds = [...operation.collectionIds]
+              if ('folderId' in operation) { target.folderId = operation.folderId; target.folder = folders.find(folder => folder.id === operation.folderId)?.name || '' }
+              results.push({ sourceId: source.id, itemId: target.id, status: 'succeeded', error: null })
+            }
+            return { results, refreshPending: needsSync, snapshot: snapshot() }
           }
           throw { code: 'not_supported', message: 'Unsupported synthetic UI fixture command.' }
         },

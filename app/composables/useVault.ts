@@ -1,6 +1,6 @@
 import { isTauri } from '@tauri-apps/api/core'
 import { demoItems } from '~/data/demo'
-import type { CopyField, LoginOutcome, LoginRequest, SessionStatus, VaultSnapshot, VaultItem, VaultOrganization, VaultCollection, VaultFolder, WriteOutcome } from '~/types/vault'
+import type { CopyField, LoginOutcome, LoginRequest, SessionStatus, VaultSnapshot, VaultItem, VaultOrganization, VaultCollection, VaultFolder, WriteOutcome, ManagementOperation, BatchOutcome } from '~/types/vault'
 
 export function useVault() {
   const session = useState<SessionStatus>('vault:session', () => ({ locked: true, mode: 'disconnected', generation: 0, lastSync: null }))
@@ -149,6 +149,20 @@ export function useVault() {
     if (demo.value) item.favorite = !item.favorite
     else await changeItem(item, 'favorite', !item.favorite)
   }
+  async function manageItems(selection: readonly VaultItem[], operation: ManagementOperation): Promise<BatchOutcome | null> {
+    if (!connected.value || mutating.value || needsSync.value || !selection.length) return null
+    mutating.value = true
+    const generation = session.value.generation
+    try {
+      const outcome = await invoke<BatchOutcome>('manage_items', { expectedGeneration: generation, request: { items: selection.map(item => ({ id: item.id, revision: item.revision })), operation } })
+      if (locked.value || outcome.snapshot.session.generation !== session.value.generation) return null
+      applySnapshot(outcome.snapshot)
+      const succeeded = outcome.results.filter(result => result.status === 'succeeded').length
+      notify(outcome.refreshPending ? `${succeeded} of ${selection.length} entries completed. Synchronize and inspect the results before another change.` : `${succeeded} of ${selection.length} entries completed.`)
+      return outcome
+    } catch (error) { notify(errorMessage(error, 'Could not manage these entries.')); return null }
+    finally { mutating.value = false }
+  }
   async function copy(itemId: string, field: CopyField): Promise<boolean> {
     if (locked.value || !items.value.some(item => item.id === itemId)) return false
     const epoch = sessionEpoch.value
@@ -209,5 +223,5 @@ export function useVault() {
     return false
   }
   async function hideQuickAccess() { if (desktop.value) await invoke('hide_quick_access') }
-  return { session, locked, demo, connected, items, organizations, collections, folders, recent, feedback, syncing, mutating, needsSync, unsupportedItems, desktop, applySession, acceptWrite, changeItem, sessionChanged, initialize, login, unlock, lock, sync, copy, reveal, toggleFavorite, openWebsite, openAndFill, notify, showQuickAccess, hideQuickAccess, errorMessage }
+  return { session, locked, demo, connected, items, organizations, collections, folders, recent, feedback, syncing, mutating, needsSync, unsupportedItems, desktop, applySession, acceptWrite, changeItem, manageItems, sessionChanged, initialize, login, unlock, lock, sync, copy, reveal, toggleFavorite, openWebsite, openAndFill, notify, showQuickAccess, hideQuickAccess, errorMessage }
 }
