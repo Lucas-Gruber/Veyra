@@ -1,5 +1,6 @@
 // Per-WebView memory only. Never serialize searches into preferences or storage.
-let remembered: { query: string; generation: number; expiresAt: number } | undefined
+interface QuickAccessSearch { query: string; selectedItemId: string | null }
+let remembered: QuickAccessSearch & { generation: number; expiresAt: number } | undefined
 let expiry: ReturnType<typeof setTimeout> | undefined
 
 export function clearQuickAccessSearch() {
@@ -8,16 +9,18 @@ export function clearQuickAccessSearch() {
   remembered = undefined
 }
 
-export function rememberQuickAccessSearch(query: string, generation: number) {
+export function rememberQuickAccessSearch(query: string, generation: number, selectedItemId: string | null) {
   clearQuickAccessSearch()
-  if (!query) return
-  remembered = { query, generation, expiresAt: performance.now() + 30_000 }
+  if (!query && !selectedItemId) return
+  remembered = { query, selectedItemId, generation, expiresAt: performance.now() + 30_000 }
   expiry = setTimeout(clearQuickAccessSearch, 30_000)
 }
 
-export function restoreQuickAccessSearch(generation: number): string {
+export function restoreQuickAccessSearch(generation: number): QuickAccessSearch {
   const saved = remembered
   clearQuickAccessSearch()
   // Check the deadline even if a hidden WebView throttled its expiry timer.
-  return saved && saved.generation === generation && performance.now() < saved.expiresAt ? saved.query : ''
+  return saved && saved.generation === generation && performance.now() < saved.expiresAt
+    ? { query: saved.query, selectedItemId: saved.selectedItemId }
+    : { query: '', selectedItemId: null }
 }

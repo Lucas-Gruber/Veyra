@@ -8,9 +8,10 @@ const props = defineProps<{ standalone?: boolean }>()
 const emit = defineEmits<{ close: []; openItem: [id: string] }>()
 const vault = useVault()
 const prefs = usePreferences()
-const query = ref(vault.locked.value ? '' : restoreQuickAccessSearch(vault.session.value.generation))
+const restored = vault.locked.value ? undefined : restoreQuickAccessSearch(vault.session.value.generation)
+const query = ref(restored?.query ?? '')
+const selectedItemId = ref<string | null>(restored?.selectedItemId ?? null)
 let dismissed = false
-const selected = ref(0)
 const actions = ref(false)
 const searchInput = ref<HTMLInputElement>()
 const dialog = ref<HTMLElement>()
@@ -19,8 +20,12 @@ let previousFocus: HTMLElement | null = null
 let unlistenFocus: (() => void) | undefined
 let unlistenBlur: (() => void) | undefined
 const results = computed(() => vault.locked.value ? [] : searchItems(vault.items.value.filter(item => !item.deleted), query.value).slice(0, 8))
+const selected = computed({
+  get: () => Math.max(0, results.value.findIndex(item => item.id === selectedItemId.value)),
+  set: (index: number) => { selectedItemId.value = results.value[index]?.id ?? null },
+})
 const current = computed(() => results.value[selected.value])
-watch(query, () => { selected.value = 0; actions.value = false })
+watch(query, () => { selectedItemId.value = null; actions.value = false }, { flush: 'sync' })
 watch([vault.locked, () => vault.session.value.generation], ([locked]) => {
   clearQuickAccessSearch()
   reset()
@@ -37,7 +42,9 @@ onMounted(async () => {
     unlistenFocus = await listen('quick-access:focus', () => {
       prefs.load()
       if (dismissed) {
-        query.value = vault.locked.value ? '' : restoreQuickAccessSearch(vault.session.value.generation)
+        const saved = vault.locked.value ? undefined : restoreQuickAccessSearch(vault.session.value.generation)
+        query.value = saved?.query ?? ''
+        selectedItemId.value = saved?.selectedItemId ?? null
         dismissed = false
       }
       nextTick(() => { if (vault.locked.value) dialog.value?.querySelector<HTMLInputElement>('input')?.focus(); else searchInput.value?.focus() })
@@ -46,11 +53,11 @@ onMounted(async () => {
   }
 })
 onBeforeUnmount(() => { dismiss(); unlistenFocus?.(); unlistenBlur?.(); previousFocus?.focus() })
-function reset() { query.value = ''; actions.value = false; selected.value = 0; loginForm.value?.clear() }
+function reset() { query.value = ''; actions.value = false; selectedItemId.value = null; loginForm.value?.clear() }
 function dismiss() {
   if (!dismissed) {
     if (vault.locked.value) clearQuickAccessSearch()
-    else rememberQuickAccessSearch(query.value, vault.session.value.generation)
+    else rememberQuickAccessSearch(query.value, vault.session.value.generation, current.value?.id ?? null)
     dismissed = true
   }
   reset()

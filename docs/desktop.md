@@ -27,9 +27,11 @@ ID used by Wayland docks.
 The native main and Quick Access WebViews share one Rust session and metadata snapshot. Tauri capabilities allow only scoped local commands and session event listeners; there is no shell/filesystem/generic clipboard/opener IPC exposed. Website opening is a native operation restricted to a known item's HTTPS URL and an active session.
 
 Native Quick Access fills its undecorated window with one surface and hides on
-native focus loss (including clicking another window). The last search is retained
+native focus loss (including clicking another window). The last search and selected entry ID are retained
 in WebView memory for 30 seconds after dismissal and restored when reopened within
-that period. It is never written to browser storage or disk. Locking or changing
+that period. Selection follows the ID across result reordering, and falls back
+to the first visible result if the entry is unavailable. This state is never
+written to browser storage or disk. Locking or changing
 the vault session immediately discards it. Action-menu state and unsubmitted
 sign-in fields are cleared on focus loss or explicit closing. The browser overlay
 has the same search retention and closes on a backdrop click.
