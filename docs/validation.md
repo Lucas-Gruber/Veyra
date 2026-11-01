@@ -1,3 +1,24 @@
+# Quick Access focus and outside dismissal — 2026-11-01
+
+Quick Access activation now waits for the native window to be visible and
+restored before requesting focus. GTK's focus request otherwise ignores hidden
+or minimized windows. Actual native focus events activate the search/sign-in
+form; losing focus hides the popup without trying to steal focus back. Reported
+restoration/activation failures hide it. Browser previews make background
+content inert, close on outside pointer down or window blur, and restore their
+opener's keyboard focus only while the page is active. Dismissed or unmounted
+components ignore deferred input-focus callbacks and remove event listeners.
+
+The full Chromium suite passed 56 cases. Four new focus/dismissal cases also
+passed under headless WebKit; they cover background focus prevention, immediate
+outside dismissal, browser blur, native IPC activation contracts and retained
+searches. Headless tabs emulate focus independently, so browser blur is supplied
+as a DOM event; this is not a native window-manager acceptance test. TypeScript,
+ESLint, static Nuxt generation, 47 frontend unit tests, Rust formatting/Clippy and 42 Rust unit tests
+passed (14 environment/child-fixture cases remain explicitly ignored).
+The working version stays `0.1.1`. Actual KDE/GNOME/Wayland and Windows/macOS
+activation/dismissal still require desktop verification.
+
 # Quick Access, tray and settings — 2026-11-01
 
 Local checks after the selected-item retention, main-client shortcut, tray and

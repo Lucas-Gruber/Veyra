@@ -585,7 +585,7 @@ async fn reveal_field(
 }
 
 #[tauri::command]
-fn show_quick_access(app: tauri::AppHandle) -> Result<(), VaultError> {
+async fn show_quick_access(app: tauri::AppHandle) -> Result<(), VaultError> {
     tray::require_running(&app)?;
     let window = if let Some(window) = app.get_webview_window("quick-access") {
         window
@@ -602,6 +602,7 @@ fn show_quick_access(app: tauri::AppHandle) -> Result<(), VaultError> {
         .resizable(false)
         .decorations(false)
         .always_on_top(true)
+        .focused(true)
         .visible(false)
         .build()
         .map_err(|_| {
@@ -611,11 +612,15 @@ fn show_quick_access(app: tauri::AppHandle) -> Result<(), VaultError> {
             )
         })?;
         let popup = window.clone();
-        window.on_window_event(move |event| {
-            if matches!(event, tauri::WindowEvent::Focused(false)) {
+        window.on_window_event(move |event| match event {
+            tauri::WindowEvent::Focused(true) => {
+                let _ = popup.emit("quick-access:focus", ());
+            }
+            tauri::WindowEvent::Focused(false) => {
                 let _ = popup.emit("quick-access:blur", ());
                 let _ = popup.hide();
             }
+            _ => {}
         });
         window
     };
@@ -625,18 +630,23 @@ fn show_quick_access(app: tauri::AppHandle) -> Result<(), VaultError> {
             "Quick Access window could not be shown.",
         )
     })?;
-    window.set_focus().map_err(|_| {
-        error(
+    let activation = tokio::time::timeout(std::time::Duration::from_secs(1), async {
+        window.unminimize()?;
+        // GTK queues mapping/deiconifying separately. Its focus request is
+        // ignored while hidden or minimized, so let the event loop finish first.
+        while !window.is_visible()? || window.is_minimized()? {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+        window.set_focus()
+    })
+    .await;
+    if !matches!(activation, Ok(Ok(()))) {
+        let _ = window.hide();
+        return Err(error(
             "window_focus_denied",
-            "The compositor did not allow focusing Quick Access.",
-        )
-    })?;
-    window.emit("quick-access:focus", ()).map_err(|_| {
-        error(
-            "window_unavailable",
-            "Quick Access focus event could not be delivered.",
-        )
-    })?;
+            "The desktop did not allow restoring and focusing Quick Access.",
+        ));
+    }
     Ok(())
 }
 

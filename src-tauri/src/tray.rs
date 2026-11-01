@@ -119,7 +119,7 @@ pub fn initialize(app: &tauri::AppHandle) -> tauri::Result<()> {
                 let _ = super::show_main_window(app.clone());
             }
             QUICK => {
-                let _ = super::show_quick_access(app.clone());
+                super::quick_launch::show(app, super::quick_launch::Launch::QuickAccess);
             }
             LOCK => {
                 let app = app.clone();

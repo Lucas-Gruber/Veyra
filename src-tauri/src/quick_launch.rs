@@ -57,9 +57,11 @@ pub(crate) fn show(app: &tauri::AppHandle, launch: Launch) {
     let handle = app.clone();
     let _ = handle.run_on_main_thread(move || match launch {
         Launch::QuickAccess => {
-            if crate::show_quick_access(app).is_err() {
-                eprintln!("The desktop could not show Veyra Quick Access.");
-            }
+            tauri::async_runtime::spawn(async move {
+                if crate::show_quick_access(app).await.is_err() {
+                    eprintln!("The desktop could not show Veyra Quick Access.");
+                }
+            });
         }
         Launch::Main => {
             if let Some(window) = app.get_webview_window("main") {

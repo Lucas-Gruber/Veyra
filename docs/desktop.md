@@ -27,14 +27,21 @@ ID used by Wayland docks.
 The native main and Quick Access WebViews share one Rust session and metadata snapshot. Tauri capabilities allow only scoped local commands and session event listeners; there is no shell/filesystem/generic clipboard/opener IPC exposed. Website opening is a native operation restricted to a known item's HTTPS URL and an active session.
 
 Native Quick Access fills its undecorated window with one surface and hides on
-native focus loss (including clicking another window). The last search and selected entry ID are retained
+native focus loss (including clicking another window). Opening restores it from
+minimization and requests focus after it is visible; the actual native focus
+event focuses search or the sign-in form. It stays above other windows while
+open. Activation errors hide it, and there is no repeated focus-stealing loop.
+The last search and selected entry ID are retained
 in WebView memory for 30 seconds after dismissal and restored when reopened within
 that period. Selection follows the ID across result reordering, and falls back
 to the first visible result if the entry is unavailable. This state is never
 written to browser storage or disk. Locking or changing
 the vault session immediately discards it. Action-menu state and unsubmitted
 sign-in fields are cleared on focus loss or explicit closing. The browser overlay
-has the same search retention and closes on a backdrop click.
+has the same search retention, makes the background inert while open, and closes
+immediately on outside pointer down or window blur. Explicit closing returns
+keyboard focus to its opener when the page is still active. Standalone browser
+preview also returns to the main preview on dismissal.
 Quick Access always shows **Open Veyra** and its editable shortcut (`Ctrl+E` by
 default). It opens the selected item in the main client or restores the main
 window while locked or without search results. Even long shortcut labels wrap

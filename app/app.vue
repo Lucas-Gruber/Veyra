@@ -41,6 +41,13 @@ async function closeSettings() {
   settingsOpener = null
 }
 const quickOpen = ref(false)
+let quickOpener: HTMLElement | null = null
+async function closeQuick() {
+  quickOpen.value = false
+  await nextTick()
+  if (document.hasFocus() && quickOpener?.isConnected) quickOpener.focus()
+  quickOpener = null
+}
 const editorOpen = ref(false)
 const editingItem = ref<VaultItem>()
 const sidebarOpen = ref(false)
@@ -149,7 +156,10 @@ function contextAction(action: string) {
   else if (action === 'favorite') void vault.toggleFavorite(item.id)
   else if (['username', 'password', 'totp'].includes(action)) void vault.copy(item.id, action as 'username' | 'password' | 'totp')
 }
-async function openQuick() { if (!(await vault.showQuickAccess())) quickOpen.value = true }
+async function openQuick() {
+  const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  if (!(await vault.showQuickAccess())) { quickOpener = opener; quickOpen.value = true }
+}
 async function openDetail(id: string) { vaultScope.value = 'all'; selectView('All items'); quickOpen.value = false; await nextTick(); selectItem(id) }
 function openEditor(item?: VaultItem) { editingItem.value = item; editorOpen.value = true }
 function count(label: string) {
@@ -222,9 +232,9 @@ onBeforeUnmount(() => { stopAutomaticUpdateChecks?.(); window.removeEventListene
 <template>
   <UApp>
     <div :class="['veyra-app', { 'theme-light': isLight, 'surface-glass': prefs.surface === 'glass', 'standalone-app': quickStandalone }]">
-      <QuickAccess v-if="quickStandalone" standalone @open-item="openDetail" @open-main="quickStandalone = false"/>
+      <QuickAccess v-if="quickStandalone" standalone @close="quickStandalone = false" @open-item="openDetail" @open-main="quickStandalone = false"/>
       <template v-else>
-        <div class="app-frame" :inert="settingsOpen">
+        <div class="app-frame" :inert="settingsOpen || quickOpen">
           <aside :class="['sidebar', { 'mobile-open': sidebarOpen }]" aria-label="Main navigation">
             <div class="brand"><BrandMark/><span>Veyra</span><span class="preview-badge">PREVIEW</span><button class="icon-button mobile-sidebar-close" aria-label="Close navigation" @click="sidebarOpen = false"><X :size="18"/></button></div>
             <VaultSwitcher v-model="vaultScope"/>
@@ -256,8 +266,8 @@ onBeforeUnmount(() => { stopAutomaticUpdateChecks?.(); window.removeEventListene
             </template>
           </main>
         </div>
-        <footer class="app-statusbar" :inert="settingsOpen"><span><span class="status-dot"/>Integration preview<span class="statusbar-divider">·</span>{{ vault.connected.value ? 'Connected in memory' : 'No server connected' }}</span><span><LockKeyhole :size="12"/>{{ vault.locked.value ? 'Locked · signed out' : vault.demo.value ? 'Synthetic data only' : 'No offline cache' }}<span class="statusbar-divider">·</span><button @click="openQuick">Quick Access <kbd>{{ prefs.shortcuts.openQuick }}</kbd></button></span></footer>
-        <QuickAccess v-if="quickOpen" @close="quickOpen = false" @open-item="openDetail" @open-main="quickOpen = false"/>
+        <footer class="app-statusbar" :inert="settingsOpen || quickOpen"><span><span class="status-dot"/>Integration preview<span class="statusbar-divider">·</span>{{ vault.connected.value ? 'Connected in memory' : 'No server connected' }}</span><span><LockKeyhole :size="12"/>{{ vault.locked.value ? 'Locked · signed out' : vault.demo.value ? 'Synthetic data only' : 'No offline cache' }}<span class="statusbar-divider">·</span><button @click="openQuick">Quick Access <kbd>{{ prefs.shortcuts.openQuick }}</kbd></button></span></footer>
+        <QuickAccess v-if="quickOpen" @close="closeQuick" @open-item="openDetail" @open-main="closeQuick"/>
         <ItemContextMenu v-if="contextMenu" :x="contextMenu.x" :y="contextMenu.y" :actions="contextActions" @close="contextMenu = undefined" @select="contextAction"/>
         <ManageItemsDialog v-if="management" :items="management.items" :mode="management.mode" @close="management = undefined"/>
         <SettingsDialog v-if="settingsOpen" @close="closeSettings"/>

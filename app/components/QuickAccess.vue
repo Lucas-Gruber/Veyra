@@ -17,9 +17,9 @@ const actions = ref(false)
 const searchInput = ref<HTMLInputElement>()
 const dialog = ref<HTMLElement>()
 const loginForm = ref<{ clear: () => void }>()
-let previousFocus: HTMLElement | null = null
 let unlistenFocus: (() => void) | undefined
 let unlistenBlur: (() => void) | undefined
+let mounted = false
 const results = computed(() => vault.locked.value ? [] : searchItems(vault.items.value.filter(item => !item.deleted), query.value).slice(0, 8))
 const selected = computed({
   get: () => Math.max(0, results.value.findIndex(item => item.id === selectedItemId.value)),
@@ -28,35 +28,54 @@ const selected = computed({
 const current = computed(() => results.value[selected.value])
 watch(query, () => { interactionEpoch++; selectedItemId.value = null; actions.value = false }, { flush: 'sync' })
 watch(selectedItemId, () => { interactionEpoch++ }, { flush: 'sync' })
-watch([vault.locked, () => vault.session.value.generation], ([locked]) => {
+watch([vault.locked, () => vault.session.value.generation], () => {
   interactionEpoch++
   clearQuickAccessSearch()
   reset()
-  if (!locked) nextTick(() => searchInput.value?.focus())
+  if (!dismissed) void nextTick(focusInput)
 }, { flush: 'sync' })
 watch(selected, () => nextTick(() => document.querySelector('.quick-result.selected')?.scrollIntoView({ block: 'nearest' })))
+function focusInput() {
+  if (!mounted || dismissed) return
+  const target = vault.locked.value
+    ? dialog.value?.querySelector<HTMLElement>('input:not([disabled]), .demo-entry button:not([disabled])')
+    : searchInput.value
+  target?.focus({ preventScroll: true })
+}
+function activate() {
+  if (!mounted) return
+  prefs.load()
+  if (dismissed) {
+    interactionEpoch++
+    const saved = vault.locked.value ? undefined : restoreQuickAccessSearch(vault.session.value.generation)
+    query.value = saved?.query ?? ''
+    selectedItemId.value = saved?.selectedItemId ?? null
+    dismissed = false
+  }
+  void nextTick(focusInput)
+}
+function onWindowBlur() {
+  // The native window uses Rust's actual focus events. Browser previews need
+  // the same dismissal when the user switches to another window or tab.
+  if (!vault.desktop.value && !dismissed) void close()
+}
 onMounted(async () => {
-  previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  mounted = true
+  window.addEventListener('blur', onWindowBlur)
   await nextTick()
-  if (vault.locked.value) { const target = dialog.value?.querySelector<HTMLElement>('input, .demo-entry button'); target?.focus() }
-  else searchInput.value?.focus()
+  focusInput()
   if (vault.desktop.value) {
     const { listen } = await import('@tauri-apps/api/event')
-    unlistenFocus = await listen('quick-access:focus', () => {
-      prefs.load()
-      if (dismissed) {
-        interactionEpoch++
-        const saved = vault.locked.value ? undefined : restoreQuickAccessSearch(vault.session.value.generation)
-        query.value = saved?.query ?? ''
-        selectedItemId.value = saved?.selectedItemId ?? null
-        dismissed = false
-      }
-      nextTick(() => { if (vault.locked.value) dialog.value?.querySelector<HTMLInputElement>('input')?.focus(); else searchInput.value?.focus() })
-    })
-    unlistenBlur = await listen('quick-access:blur', dismiss)
+    if (!mounted) return
+    const stopFocus = await listen('quick-access:focus', activate)
+    if (!mounted) { stopFocus(); return }
+    unlistenFocus = stopFocus
+    const stopBlur = await listen('quick-access:blur', dismiss)
+    if (!mounted) stopBlur()
+    else unlistenBlur = stopBlur
   }
 })
-onBeforeUnmount(() => { dismiss(); unlistenFocus?.(); unlistenBlur?.(); previousFocus?.focus() })
+onBeforeUnmount(() => { mounted = false; dismiss(); window.removeEventListener('blur', onWindowBlur); unlistenFocus?.(); unlistenBlur?.() })
 function reset() { query.value = ''; actions.value = false; selectedItemId.value = null; loginForm.value?.clear() }
 function dismiss() {
   if (!dismissed) {
@@ -69,7 +88,7 @@ function dismiss() {
 }
 async function close() {
   dismiss()
-  if (props.standalone) await vault.hideQuickAccess()
+  if (props.standalone && vault.desktop.value) await vault.hideQuickAccess()
   else emit('close')
 }
 async function openMain(item: VaultItem | undefined = current.value) {
@@ -161,7 +180,7 @@ const actionList = computed(() => [
 ].map(entry => ({ ...entry, key: prefs.shortcuts[entry.action as ShortcutAction] })))
 </script>
 <template>
-  <div :class="standalone ? 'quick-standalone' : 'quick-backdrop'" @click.self="close">
+  <div :class="standalone ? 'quick-standalone' : 'quick-backdrop'" @pointerdown.self.prevent="close">
     <section ref="dialog" class="quick-access" role="dialog" aria-modal="true" aria-label="Quick Access" @keydown="onKey">
       <template v-if="vault.locked.value"><button class="icon-button quick-close" aria-label="Close Quick Access" @click="close"><X :size="18"/></button><LockedVault ref="loginForm" compact/></template>
       <template v-else>
