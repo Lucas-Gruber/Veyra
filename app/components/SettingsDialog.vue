@@ -56,6 +56,7 @@ function onKey(event: KeyboardEvent) {
           <p class="eyebrow">CLEAR BOUNDARIES</p><h3>Built with care.</h3><p class="muted">{{ vault.connected.value ? 'Vault sessions and keys stay in memory. Changes are encrypted in Rust and sent to Vaultwarden.' : 'Explore samples, or connect securely in the desktop application.' }}</p>
           <div class="setting-row"><span>Clipboard clearing<small>Desktop · best effort, only if unchanged</small></span><span class="status-chip">30 seconds</span></div>
           <div class="setting-row"><span>Vault data<small>{{ vault.demo.value ? 'Synthetic metadata, held in memory' : 'Decrypted metadata in memory while unlocked' }}</small></span><ShieldCheck :size="19"/></div>
+          <DesktopIntegrationStatus/>
           <div class="setting-note"><Info :size="20"/><span>{{ vault.desktop.value ? 'Clipboard history managers may retain copied data. Veyra cannot guarantee erasure outside the application.' : 'Browser demo: clipboard clearing is unavailable. Only synthetic sample values can be copied.' }}</span></div>
           <p class="setting-hint">This is an integration preview pending independent security review. Locking signs out and drops in-memory keys. Automatic locking and offline cache are not available yet.</p>
         </template>

@@ -99,6 +99,7 @@ export async function installConnectedVault(page: Page, folderFixture?: { folder
           if (command === 'plugin:event|unlisten') return
           if (command === 'hide_quick_access') return
           if (command === 'show_main_window' || command === 'open_main_item') return
+          if (command === 'desktop_integration_status') return { tray: 'ready', message: 'Synthetic system tray ready.' }
           if (command === 'open_website') return
           if (command === 'copy_field') return
           if (command === 'begin_browser_fill') {
