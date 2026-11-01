@@ -98,3 +98,38 @@ test('uncertain batch results are explicit, stop further writes and disappear on
   await expect(page.locator('.item-row')).toHaveCount(0)
   expect(await page.evaluate(() => JSON.stringify({ ...localStorage }))).not.toMatch(/synthetic|fixture|Lantern|Platform/)
 })
+
+test('a replacement unlocked session dismisses item management before it can reuse old selections', async ({ page }) => {
+  await page.locator('.item-row').filter({ hasText: 'Personal fixture login' }).click({ button: 'right' })
+  await page.getByRole('menuitem', { name: 'Duplicate…', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Duplicate items', exact: true })
+  await expect(dialog).toContainText('Personal fixture login')
+  await page.evaluate(() => window.__VEYRA_UI_FIXTURE__.replaceSession())
+  await expect(dialog).toHaveCount(0)
+  // This is an unlocked-to-unlocked generation change, not the existing lock path.
+  await expect(page.locator('.item-row')).toHaveCount(4)
+  await expect(page.locator('.sidebar-status')).toContainText('Connected')
+  expect(await page.evaluate(() => window.__VEYRA_UI_FIXTURE__.calls.filter(call => call.command === 'manage_items'))).toEqual([])
+})
+
+test('bulk trash stops when an accepted item response is followed by a replacement session', async ({ page }) => {
+  await page.locator('.item-row').filter({ hasText: 'Personal fixture login' }).click()
+  await page.locator('.item-row').filter({ hasText: 'Platform fixture login' }).click({ modifiers: ['Shift'] })
+  await page.getByRole('toolbar', { name: 'Selected items' }).getByRole('button', { name: 'Actions', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Move to trash…', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Move to trash', exact: true })
+  await page.evaluate(() => {
+    window.__VEYRA_UI_FIXTURE__.delayNextChange = true
+    window.__VEYRA_UI_FIXTURE__.replaceAfterDelayedChange = true
+  })
+  await dialog.getByRole('button', { name: 'Apply to 2 items', exact: true }).click()
+  await expect.poll(() => page.evaluate(() => window.__VEYRA_UI_FIXTURE__.pendingChange)).toBe(true)
+  await page.evaluate(() => window.__VEYRA_UI_FIXTURE__.releaseChange())
+  await expect(dialog).toHaveCount(0)
+  await expect(page.locator('.sidebar-status')).toContainText('Connected')
+  await expect(page.locator('.item-row')).toHaveCount(3)
+  await expect(page.locator('.item-row').filter({ hasText: 'Platform fixture login' })).toBeVisible()
+  const changes = await page.evaluate(() => window.__VEYRA_UI_FIXTURE__.calls.filter(call => call.command === 'change_item'))
+  expect(changes).toHaveLength(1)
+  expect(changes[0]).toMatchObject({ args: { expectedGeneration: 1, request: { id: 'personal-login', action: 'trash' } } })
+})

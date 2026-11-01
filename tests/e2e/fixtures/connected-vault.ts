@@ -8,7 +8,12 @@ interface FixtureControls {
   pendingEditor: boolean
   failBatchItem: string | null
   uncertainBatchItem: string | null
+  delayNextChange: boolean
+  pendingChange: boolean
+  replaceAfterDelayedChange: boolean
   releaseEditor: () => void
+  releaseChange: () => void
+  replaceSession: () => void
   emitQuickBlur: () => void
 }
 
@@ -26,6 +31,7 @@ export async function installConnectedVault(page: Page, folderFixture?: { folder
     let nextCallback = 0
     let nextItem = 0
     let releaseEditor: (() => void) | undefined
+    let releaseChange: (() => void) | undefined
     const callbacks = new Map<number, (event: unknown) => void>()
     const listeners = new Map<string, number[]>()
     const organizations = [{ id: 'org-lantern', name: 'Lantern Guild' }, { id: 'org-river', name: 'River Cooperative' }, { id: 'org-empty', name: 'Empty group' }]
@@ -53,7 +59,13 @@ export async function installConnectedVault(page: Page, folderFixture?: { folder
     const snapshot = () => structuredClone({ session: status(), items: locked ? [] : items, organizations: locked ? [] : organizations, collections: locked ? [] : collections, folders: locked ? [] : folders, unsupportedItems: 0, needsSync })
     const controls: FixtureControls = {
       calls: [], failNextSave: false, delayNextEditor: false, pendingEditor: false, failBatchItem: null, uncertainBatchItem: null,
+      delayNextChange: false, pendingChange: false, replaceAfterDelayedChange: false,
       releaseEditor() { releaseEditor?.(); releaseEditor = undefined },
+      releaseChange() { releaseChange?.(); releaseChange = undefined },
+      replaceSession() {
+        generation++; locked = false
+        for (const id of listeners.get('vault:changed') || []) callbacks.get(id)?.({ payload: status() })
+      },
       emitQuickBlur() { for (const id of listeners.get('quick-access:blur') || []) callbacks.get(id)?.({ payload: null }) },
     }
     Object.assign(window, {
@@ -110,7 +122,19 @@ export async function installConnectedVault(page: Page, folderFixture?: { folder
             if (!item) throw { code: 'not_found', message: 'Synthetic item not found.' }
             if (request.action === 'favorite') { item.favorite = !!request.favorite; drafts[item.id]!.favorite = item.favorite }
             else { item.deleted = request.action === 'trash'; item.canRestore = item.deleted; item.canDelete = !item.deleted }
-            return { itemId: item.id, refreshPending: false, snapshot: snapshot() }
+            const result = { itemId: item.id, refreshPending: false, snapshot: snapshot() }
+            if (controls.delayNextChange) {
+              controls.delayNextChange = false; controls.pendingChange = true
+              await new Promise<void>(resolve => { releaseChange = resolve })
+              controls.pendingChange = false
+              if (controls.replaceAfterDelayedChange) {
+                controls.replaceAfterDelayedChange = false
+                // Deliver the accepted old-session result first, then publish a
+                // replacement before the dialog resumes its next batch item.
+                queueMicrotask(() => queueMicrotask(() => controls.replaceSession()))
+              }
+            }
+            return result
           }
           if (command === 'manage_items') {
             if (args?.expectedGeneration !== generation || locked || needsSync) throw { code: 'locked', message: 'Synthetic vault unavailable.' }
