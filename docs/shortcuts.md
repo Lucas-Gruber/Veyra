@@ -48,6 +48,12 @@ intercept all keyboard input. Runtime initialization installs the backend;
 registration occurs when the main frontend requests its saved preference.
 Neither a settings change nor a version bump authorizes publication.
 
+Quick Access always shows **Open Veyra** and its configurable shortcut (default
+`Ctrl+E`) in the footer. It opens the selected entry in the main client, or simply
+restores the main window when locked or when no result is available. The command
+also restores a minimized main window. The same binding is listed in Settings →
+Quick Access and works from the sign-in form.
+
 The implementation uses pinned `tauri-plugin-global-shortcut 2.4.1`,
 `ashpd 0.13.13`, and `zbus 5.19.0`. Portal trigger strings follow the official
 [XDG shortcut specification](https://specifications.freedesktop.org/shortcuts/latest/)

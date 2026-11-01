@@ -1,0 +1,67 @@
+import { expect, test } from '@playwright/test'
+import { installConnectedVault } from './fixtures/connected-vault'
+
+test('Open Veyra is visible with its shortcut and opens the selected native item', async ({ page }) => {
+  await installConnectedVault(page)
+  await page.goto('/?window=quick')
+  await expect(page.getByRole('option')).toHaveCount(4)
+  const open = page.getByRole('button', { name: 'Open Veyra', exact: true })
+  await expect(open).toContainText('Ctrl+E')
+  await page.getByRole('combobox', { name: 'Search vault' }).fill('Personal')
+  await page.keyboard.press('Control+e')
+  await expect.poll(() => page.evaluate(() => window.__VEYRA_UI_FIXTURE__.calls.some(call => call.command === 'open_main_item'))).toBe(true)
+  const calls = await page.evaluate(() => window.__VEYRA_UI_FIXTURE__.calls.filter(call => ['open_main_item', 'show_main_window'].includes(call.command)))
+  expect(calls).toEqual([{ command: 'open_main_item', args: { itemId: 'personal-login' } }])
+})
+
+test('Open Veyra works with no search results and while locked, including a customized shortcut', async ({ page }) => {
+  await installConnectedVault(page)
+  await page.addInitScript(() => localStorage.setItem('veyra:preferences', JSON.stringify({ shortcuts: { detail: 'Ctrl+Shift+E' } })))
+  await page.setViewportSize({ width: 390, height: 700 })
+  await page.goto('/?window=quick')
+  await expect(page.getByRole('option')).toHaveCount(4)
+  const open = page.getByRole('button', { name: 'Open Veyra', exact: true })
+  await expect(open).toContainText('Ctrl+Shift+E')
+  await page.getByRole('combobox').fill('no-such-fixture')
+  await expect(page.getByRole('option')).toHaveCount(0)
+  await page.keyboard.press('Control+Shift+e')
+  await expect.poll(() => page.evaluate(() => window.__VEYRA_UI_FIXTURE__.calls.filter(call => call.command === 'show_main_window').length)).toBe(1)
+  await page.keyboard.press('Control+l')
+  await expect(page.getByLabel('Master password', { exact: true })).toBeVisible()
+  await expect(open).toBeInViewport()
+  await open.click()
+  await expect.poll(() => page.evaluate(() => window.__VEYRA_UI_FIXTURE__.calls.filter(call => call.command === 'show_main_window').length)).toBe(2)
+  await page.keyboard.press('Control+Shift+e')
+  await expect.poll(() => page.evaluate(() => window.__VEYRA_UI_FIXTURE__.calls.filter(call => call.command === 'show_main_window').length)).toBe(3)
+})
+
+test('the default action opens a non-login entry in Veyra', async ({ page }) => {
+  await installConnectedVault(page)
+  await page.goto('/?window=quick')
+  await page.getByRole('combobox', { name: 'Search vault' }).fill('River')
+  await expect(page.getByRole('option')).toHaveCount(1)
+  await page.keyboard.press('Enter')
+  await expect.poll(() => page.evaluate(() => window.__VEYRA_UI_FIXTURE__.calls.filter(call => call.command === 'open_main_item').length)).toBe(1)
+  const calls = await page.evaluate(() => window.__VEYRA_UI_FIXTURE__.calls.filter(call => ['open_main_item', 'copy_field', 'begin_browser_fill'].includes(call.command)))
+  expect(calls).toEqual([{ command: 'open_main_item', args: { itemId: 'river-note' } }])
+})
+
+test('the browser preview can return from standalone Quick Access to the main client', async ({ page }) => {
+  await page.goto('/?window=quick')
+  await page.getByRole('button', { name: 'Open Veyra', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Quick Access', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Choose vault', exact: true })).toBeVisible()
+})
+
+test('the main-client shortcut stays fully visible with a long binding in a narrow window', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 520 })
+  await page.addInitScript(() => localStorage.setItem('veyra:preferences', JSON.stringify({ textSize: 18, shortcuts: { detail: 'Ctrl+Alt+Shift+Meta+ArrowRight' } })))
+  await page.goto('/?window=quick')
+  const open = page.getByRole('button', { name: 'Open Veyra', exact: true })
+  await expect(open).toContainText('Ctrl+Alt+Shift+Meta+ArrowRight')
+  await expect(open).toBeInViewport()
+  const footer = page.locator('.quick-footer')
+  expect(await footer.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
+  const bounds = await open.boundingBox()
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(320)
+})

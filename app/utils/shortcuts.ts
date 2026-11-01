@@ -8,7 +8,7 @@ export const shortcutDefinitions = [
   { id: 'totp', label: 'Copy one-time code', key: 'Ctrl+Alt+C' },
   { id: 'autofill', label: 'Open website and fill credentials', key: 'Enter' },
   { id: 'website', label: 'Open website', key: 'Ctrl+B' },
-  { id: 'detail', label: 'Open item in Veyra', key: 'Ctrl+E' },
+  { id: 'detail', label: 'Open Veyra', key: 'Ctrl+E' },
   { id: 'favorite', label: 'Toggle favorite', key: 'Ctrl+D' },
   { id: 'quickActions', label: 'Quick Access actions', key: 'Tab' },
   { id: 'quickClose', label: 'Close Quick Access', key: 'Escape' },

@@ -222,7 +222,7 @@ onBeforeUnmount(() => { stopAutomaticUpdateChecks?.(); window.removeEventListene
 <template>
   <UApp>
     <div :class="['veyra-app', { 'theme-light': isLight, 'surface-glass': prefs.surface === 'glass', 'standalone-app': quickStandalone }]">
-      <QuickAccess v-if="quickStandalone" standalone @open-item="openDetail"/>
+      <QuickAccess v-if="quickStandalone" standalone @open-item="openDetail" @open-main="quickStandalone = false"/>
       <template v-else>
         <div class="app-frame" :inert="settingsOpen">
           <aside :class="['sidebar', { 'mobile-open': sidebarOpen }]" aria-label="Main navigation">
@@ -257,7 +257,7 @@ onBeforeUnmount(() => { stopAutomaticUpdateChecks?.(); window.removeEventListene
           </main>
         </div>
         <footer class="app-statusbar" :inert="settingsOpen"><span><span class="status-dot"/>Integration preview<span class="statusbar-divider">·</span>{{ vault.connected.value ? 'Connected in memory' : 'No server connected' }}</span><span><LockKeyhole :size="12"/>{{ vault.locked.value ? 'Locked · signed out' : vault.demo.value ? 'Synthetic data only' : 'No offline cache' }}<span class="statusbar-divider">·</span><button @click="openQuick">Quick Access <kbd>{{ prefs.shortcuts.openQuick }}</kbd></button></span></footer>
-        <QuickAccess v-if="quickOpen" @close="quickOpen = false" @open-item="openDetail"/>
+        <QuickAccess v-if="quickOpen" @close="quickOpen = false" @open-item="openDetail" @open-main="quickOpen = false"/>
         <ItemContextMenu v-if="contextMenu" :x="contextMenu.x" :y="contextMenu.y" :actions="contextActions" @close="contextMenu = undefined" @select="contextAction"/>
         <ManageItemsDialog v-if="management" :items="management.items" :mode="management.mode" @close="management = undefined"/>
         <SettingsDialog v-if="settingsOpen" @close="closeSettings"/>
