@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.0-alpha.4 — unreleased
+
+- Personal and organization vaults; encrypted create/edit, favorites and reversible trash/restore for logins, secure notes, cards and identities.
+- Nested and empty folders, keyboard-accessible context menus, Shift-click multi-selection, folder/collection assignment, duplication and verified owner migration.
+- Configurable shortcuts with the requested clipboard defaults; dedicated website-open button in Quick Access.
+- Linux single-instance `veyra --quick-access` launch, native X11 and Wayland portal shortcut registration with explicit status/fallback.
+- Optional development browser companion for explicit exact-page filling through native messaging; separate setup required, no automatic form submission.
+- Readable text sizing, independently scrolling settings, dock icon inset and Linux startup defaults based on Noryn.
+
+This candidate is not published. Current application/build inputs are outside the recorded Alpha3 RSA exception. Native compositor acceptance, the complete installed browser matrix and required release checks remain outstanding.
+
 ## 0.1.0-alpha.1 — 2026-10-27
 
 Initial candidate with real read-only personal Vaultwarden integration.

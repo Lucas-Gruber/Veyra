@@ -1,3 +1,44 @@
+# Open project issues — 2026-11-01
+
+The nine open issues have local implementations and separate commits; see
+[the issue inventory](issues.md). Final checks on this workstation:
+
+| Check | Result |
+| --- | --- |
+| Strict TypeScript, ESLint, static Nuxt generation and coordinated version manifests | Passed; version remains unreleased `0.1.0-alpha.4` |
+| Frontend unit suite | 47 passed |
+| Full Playwright UI suite | 33 passed, using explicit demo/synthetic IPC fixtures |
+| Rust formatting, Clippy all targets with warnings denied, default tests | Passed; 41 unit tests, 11 explicitly ignored environment-specific tests |
+| Current native debug binaries | `cargo build --locked --bin veyra --bin veyra-native-host` passed after static asset generation |
+| Actual Vaultwarden 1.37.4 at the committed digest | All ten live cases executed successfully across dedicated runs: KDF/login/2FA/org sync, supported CRUD, management/preservation/uncertain results and browser target/revision binding |
+| Single-instance CLI | Actual private D-Bus forwarding test passed; no GTK or user desktop window |
+| Browser companion | Five passed, none skipped; includes real isolated Chromium extension → Rust native host → synthetic private socket → confirmed DOM fill |
+| Audit-policy regression tests | 18 passed; synthetic unit inputs isolated from the working version/count, actual checkout rejects the recorded Alpha3 exception |
+| Local launcher/GIO tests | Four passed with harmless stubs and temporary XDG directories |
+| CI workflow syntax | Pinned actionlint 1.7.12 passed; CI now runs private D-Bus, launcher and companion tests |
+| Frontend dependency audit | Exit 0 at the high threshold; two low and seven moderate findings remain |
+| Current Rust dependency audit | Not run: cargo-audit unavailable locally. The known unresolved RSA finding has no exception for these changed sources/build inputs. |
+
+Independent review corrected unknown encrypted-field loss in full editor/favorite
+updates, missing write gates after failed copy verification, a browser
+target/revision race and stale management selections across session replacement.
+Regression checks exercise each correction. Review is not an independent
+production security audit.
+
+Responsive UI checks used synthetic data: context menu at 900×700 and 18px base
+text, management/settings at 390×844 and 18px, plus the automated short-window
+settings cases. The brand badge now wraps rather than being clipped. The local
+development launcher/icon was refreshed without launching Veyra in the user's
+desktop. Dedicated containers, volumes, temporary credentials and test servers
+were cleaned up; user browser profiles and real vaults were not used.
+
+Actual global-key activation, portal permission/focus behavior, dock rendering
+and current installed Flatpak execution remain unverified. Browser tests do not
+establish the full live Veyra/Compositor/Firefox or Chromium round trip; Flatpak
+native messaging is deferred. Two-organization migration and a server-enforced
+read-only member/policy matrix have no separate live acceptance case. No new
+source release is approved by these tests.
+
 # Organization/write and desktop fixes — 2026-10-30
 
 This checkout adds organization/collection selection, encrypted entry management,

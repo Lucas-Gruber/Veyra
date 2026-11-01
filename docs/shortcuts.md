@@ -25,7 +25,7 @@ only this exact D-Bus name. The service is released when the process exits.
 Linux startup requires a working desktop session bus; it fails explicitly when
 that bus is unavailable. Single-instance forwarding outside Linux is deferred.
 
-Settings → Shortcuts changes the Quick Access accelerator and its in-app
+Settings → Quick Access changes the Quick Access accelerator and its in-app
 counterpart. The main window asks Rust to register the saved accelerator at
 startup. The default is `Ctrl+Alt+Space`. Only the main local window can invoke
 the two scoped shortcut commands; generic global-shortcut plugin IPC is not

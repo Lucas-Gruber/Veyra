@@ -32,7 +32,7 @@ and unsubmitted sign-in fields are cleared on focus loss or explicit closing.
 The browser overlay closes on a backdrop
 click. Compositor-specific focus delivery still requires desktop verification.
 
-`Ctrl Alt Space` works while Veyra has focus. The floating window uses supported Tauri show/focus/position calls; a compositor may reject focus or placement. There is no unsafe global interception. System-wide shortcuts need the XDG GlobalShortcuts portal and/or explicit compositor setup, not a claim inferred from an in-app shortcut. See https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.GlobalShortcuts.html .
+Quick Access defaults to `Ctrl+Alt+Space` and can be rebound in Settings → Quick Access. Rust registers the accelerator through the Wayland GlobalShortcuts portal or the native X11 backend. Status reports registration failures and the actual portal trigger. `veyra --quick-access` also forwards to the running Linux instance or starts it with only Quick Access visible; it can be assigned manually in compositor settings. The floating window uses supported Tauri show/focus/position calls; a compositor may reject focus or placement. Global activation/focus remains unverified on the user's desktop. See [desktop shortcuts](shortcuts.md).
 
 The clipboard worker keeps its owner alive, clears after 30 seconds only if unchanged, and also requests conditional clearing on lock. Read/clear is not atomic. Wayland data-control and XWayland availability differ by compositor; lack of access is an honest error. Clipboard managers can retain history beyond Veyra's control.
 
@@ -40,7 +40,7 @@ Locking cancels pending work and signs out. Both windows discard metadata and sh
 
 The browser UI is a sample-data preview only. Its clipboard cannot be cleared reliably. Connected operations require Rust, and a real connection failure never switches to sample data.
 
-The native application was exercised under a private cloud X11 display, including real server login/copy/sync/Quick Access/lock. This does not establish GNOME/KDE/Wayland, multiple-monitor, accessibility or Flatpak portal compatibility. No tray, startup integration, Secret Service, system-wide shortcut or browser Native Messaging feature is claimed yet.
+The earlier native application was exercised under a private cloud X11 display, including real server login/copy/sync/Quick Access/lock. This does not establish GNOME/KDE/Wayland, multiple-monitor, accessibility or Flatpak portal compatibility for the current changes. New CLI forwarding is tested on a private D-Bus; browser Native Messaging is tested with an isolated Chromium profile and synthetic transport fixtures. The optional [browser companion](browser-companion.md) requires native-host registration and extension setup; its Flatpak and Firefox end-to-end paths remain unverified. Tray, automatic startup and Secret Service integration are deferred.
 
 ## KDE Wayland with NVIDIA: startup protocol error
 

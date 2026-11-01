@@ -87,7 +87,7 @@ second-factor login, so repeated test runs do not rely on weakening replay
 protection. Activation currently uses the previous time step accepted by the
 dedicated server's standard one-step drift allowance.
 
-All six Rust live tests are explicitly ignored during ordinary unit runs. The
+All ten Rust live tests are explicitly ignored during ordinary unit runs. The
 command above executes personal-vault, authenticator-login, organization and
 write tests. Run them serially against this shared disposable server.
 A zero-test or skipped-test run is not evidence of

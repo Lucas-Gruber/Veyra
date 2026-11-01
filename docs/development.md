@@ -22,7 +22,7 @@ pnpm exec nuxt prepare
 pnpm dev
 ```
 
-`pnpm generate` produces static client assets in `.output/public`; there is no Nuxt server inside the desktop application. `pnpm desktop:dev` starts the development asset server then Tauri. `pnpm desktop:build` generates assets and builds the native binary without packaging. The desktop supports personal and organization Vaultwarden connections and encrypted create/edit/favorite/Trash/Restore for the four implemented entry types. Use disposable fixtures for development; never use production credentials in CI. The browser remains sample-only.
+`pnpm generate` produces static client assets in `.output/public`; there is no Nuxt server inside the desktop application. `pnpm tauri dev` starts the development asset server then Tauri; `pnpm desktop:dev` is an exact script alias for the same command. `pnpm desktop:build` generates assets and builds the native binary without packaging. The desktop supports personal and organization Vaultwarden connections and encrypted create/edit/favorite/Trash/Restore for the four implemented entry types. Use disposable fixtures for development; never use production credentials in CI. The browser remains sample-only.
 
 ## Small commits and versions
 
@@ -43,10 +43,15 @@ cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D w
 cargo test --locked --manifest-path src-tauri/Cargo.toml
 pnpm exec playwright install --with-deps chromium
 pnpm test:e2e
+cargo build --locked --manifest-path src-tauri/Cargo.toml --bin veyra-native-host
+pnpm test:browser-companion
+dbus-run-session -- cargo test --locked --manifest-path src-tauri/Cargo.toml forwards_launches_before_any_gtk_runtime_and_releases_the_name -- --ignored
+python3 -m unittest discover -s tests/desktop -v
+python3 -m unittest discover -s tests/security -v
 pnpm audit --audit-level high
 ```
 
-For an existing Chromium installation, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium` rather than downloading another browser. CI uses Playwright's pinned browser. Browser tests validate the demonstration UX; they do not validate WebKit, native clipboard permissions, Wayland or Vaultwarden interoperability.
+For an existing Chromium installation, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium` rather than downloading another browser. CI uses Playwright's pinned browser. Browser tests validate the demo and synthetic connected-IPC UX; they do not validate WebKit, native clipboard permissions, Wayland or Vaultwarden interoperability.
 
 ## This unprivileged cloud environment
 
@@ -81,7 +86,7 @@ This starts a private headless X11 session for smoke checks. It is not evidence 
 
 Cloud tasks already use an isolated checkout. Reuse it; do not create a worktree unless explicitly requested. Installed files survive snapshots; development servers, desktop processes and DBus sessions must be restarted. Never embed credentials in setup scripts or logs.
 
-Favorites and recent-item history in this synthetic preview are local to each WebView; they do not synchronize between the main and Quick Access windows. Real vault state will need a backend-owned metadata service.
+Synthetic demo favorites and recent-item history are local to each WebView. Connected favorites are server writes, published through the shared Rust metadata snapshot. Recent-item history remains transient and local; it is never persisted.
 
 ## Contribution boundaries
 
@@ -89,4 +94,4 @@ Follow `AGENTS.md`. Keep synthetic metadata visibly labeled. Sensitive operation
 
 ## Real server regression tests
 
-See [fixture instructions](../tests/integration/README.md). Seed fresh protected fixtures, then set `VEYRA_TEST_FIXTURE_FILE` to the output path and run `cargo test --locked --manifest-path src-tauri/Cargo.toml vaultwarden::tests::actual_vaultwarden_ -- --ignored`. This executes both live tests; a default Cargo test run intentionally does not count them as passed. The native debug app accepts a literal loopback fixture URL only with `VEYRA_ALLOW_LOOPBACK_TEST_SERVER=1`; release builds always require HTTPS.
+See [fixture instructions](../tests/integration/README.md). Seed fresh protected fixtures, then set `VEYRA_TEST_FIXTURE_FILE` to the output path and run `cargo test --locked --manifest-path src-tauri/Cargo.toml actual_vaultwarden_ -- --ignored --test-threads=1`. This executes the real authentication, organization, write, management and browser-credential tests; a default Cargo test run intentionally does not count them as passed. The native debug app accepts a literal loopback fixture URL only with `VEYRA_ALLOW_LOOPBACK_TEST_SERVER=1`; release builds always require HTTPS.

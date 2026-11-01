@@ -30,17 +30,21 @@ Access can change a favorite; Trash/Restore are rejected there using the native
 caller identity. The backend loads the original complete SDK cipher view,
 checks permissions/reprompt and the captured session generation, and encrypts
 with the pinned SDK. Existing per-cipher keys, custom fields, extra URIs,
-attachments and passkeys survive edits. New entries use SDK-generated per-cipher
+attachments and passkeys survive supported edits. Unknown or opaque encrypted payload fields block editor saves instead of being silently discarded. New entries use SDK-generated per-cipher
 keys. Changed passwords retain up to five encrypted history entries.
 
-Updates/favorites include the full `lastKnownRevisionDate`; detected conflicts are errors, never an automatic retry/overwrite. Vaultwarden's
+Editor updates include the full `lastKnownRevisionDate`; detected conflicts are errors, never an automatic retry/overwrite. Vaultwarden's
 revision comparison has timestamp tolerance; it is not a strict atomic CAS
-contract for changes made within that tolerance. Trash/Restore are reversible server operations
+contract for changes made within that tolerance. Favorites use a partial endpoint after a fresh permission/revision check, preserving all encrypted payload fields. This endpoint has no atomic CAS. Trash/Restore are reversible server operations
 with a fresh revision precheck; these endpoints do not support an atomic CAS,
 so a race between checking and applying remains possible. No permanent-delete
 command exists. A dispatched write is never automatically retried. Unknown
 outcomes or failed post-write refreshes require sync/inspection before another
 write. Native mutex/session guards keep snapshot commits in operation order.
+
+Batch folder/collection assignment, duplication and owner migration remain backend-owned. Cross-owner organization moves verify a destination copy before soft-deleting the source. Accepted but unverifiable copies and unknown write outcomes stop remaining batch items and require synchronization. See [entry management](entry-management.md) for preservation checks and non-atomic server boundaries.
+
+Explicit Linux browser filling uses a separate native-messaging binary and a private Unix socket. Rust binds a single-use expiring intent to the exact saved HTTPS URL, cipher revision and session generation; credentials come from one SDK view under a vault guard held through the bounded write. The extension verifies its sender, top frame and full target, fills a suitable same-origin form and acknowledges the result without submitting. The Veyra WebViews receive no credential values from this operation. See [browser companion](browser-companion.md) for the browser/same-UID trust boundaries.
 
 ## SDK and license decision
 
@@ -52,4 +56,4 @@ Sources: https://github.com/bitwarden/sdk-internal/releases/tag/rust-v4.0.0 , ht
 
 ## Delivery boundaries
 
-Flatpak uses a maintained GNOME 51 runtime. The current manifest packages a prebuilt native binary offline; this is offline packaging, not yet a fully vendored source build in the SDK sandbox. CI installs and functionally smoke-tests the bundle before publication. Global shortcut portals, browser Native Messaging, offline encrypted storage, richer vault moves/folder management and conflict merging remain separate milestones.
+Flatpak uses a maintained GNOME 51 runtime. The current manifest packages a prebuilt native binary offline; this is offline packaging, not yet a fully vendored source build in the SDK sandbox. CI installs and functionally smoke-tests the bundle before publication. Global shortcuts and browser Native Messaging are implemented with the verification limits documented above. Signed companion distribution, Flatpak native messaging, offline encrypted storage, new-folder creation and conflict merging remain deferred.
