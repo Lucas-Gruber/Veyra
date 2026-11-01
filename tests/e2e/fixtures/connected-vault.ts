@@ -61,7 +61,8 @@ export async function installConnectedVault(page: Page, folderFixture?: { folder
         transformCallback(callback: (event: unknown) => void) { callbacks.set(++nextCallback, callback); return nextCallback },
         unregisterCallback(id: number) { callbacks.delete(id) },
         async invoke(command: string, args?: Record<string, unknown>) {
-          controls.calls.push({ command, args: args ? structuredClone(args) : undefined })
+          // Native IPC JSON-serializes arguments, including Vue reactive values.
+          controls.calls.push({ command, args: args ? JSON.parse(JSON.stringify(args)) : undefined })
           if (command === 'plugin:event|listen') {
             const event = String(args?.event)
             listeners.set(event, [...(listeners.get(event) || []), Number(args?.handler)])
@@ -70,6 +71,7 @@ export async function installConnectedVault(page: Page, folderFixture?: { folder
           if (command === 'plugin:event|unlisten') return
           if (command === 'hide_quick_access') return
           if (command === 'open_website') return
+          if (command === 'copy_field' || command === 'begin_browser_fill') return
           if (command === 'session_status') return status()
           if (command === 'list_metadata' || command === 'sync_vault') return snapshot()
           if (command === 'lock_vault') {

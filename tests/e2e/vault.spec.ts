@@ -84,7 +84,7 @@ test('a rejected clipboard action keeps Quick Access open with its error', async
   await page.keyboard.press('Control+Alt+Space')
   const dialog = page.getByRole('dialog', { name: 'Quick Access' })
   await dialog.getByRole('combobox', { name: 'Search vault' }).fill('github')
-  await page.keyboard.press('Enter')
+  await page.keyboard.press('Control+Shift+c')
   await expect(dialog).toBeVisible()
   await expect(page.getByRole('status')).toContainText('Permission denied in test')
 })

@@ -42,10 +42,9 @@ function onKey(event: KeyboardEvent) {
         </template>
         <template v-else-if="tab === 'Quick Access'">
           <p class="eyebrow">LESS REACHING, MORE DOING</p><h3>One shortcut away.</h3><p class="muted">Find an item. Take an action. Get back to your day.</p>
-          <div class="setting-row"><span>Open Quick Access<small>Within Veyra in this milestone</small></span><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>Space</kbd></div>
-          <label class="setting-row"><span>Default action<small>When pressing Enter on a result</small></span><select v-model="prefs.defaultAction" @change="prefs.persist()"><option value="password">Copy password</option><option value="username">Copy username</option><option value="website">Open website</option></select></label>
-          <div class="shortcut-table"><span>Copy username</span><kbd>Ctrl U</kbd><span>Copy password</span><kbd>Ctrl P</kbd><span>Copy one-time code</span><kbd>Ctrl O</kbd><span>Open website</span><kbd>Ctrl B</kbd><span>Show actions</span><kbd>Tab</kbd><span>Close</span><kbd>Esc</kbd></div>
-          <p class="setting-hint">System-wide shortcuts and shortcut customization require portal integration in a later milestone. Ctrl U keeps its text editing behavior in the search field; copy username from the action menu instead.</p>
+          <label class="setting-row"><span>Click action<small>When clicking a Quick Access result</small></span><select v-model="prefs.defaultAction" @change="prefs.persist()"><option value="autofill">Open and fill with companion</option><option value="password">Copy password</option><option value="username">Copy username</option><option value="website">Open website</option></select></label>
+          <ShortcutSettings/>
+          <BrowserCompanionStatus/>
         </template>
         <template v-else-if="tab === 'Security'">
           <p class="eyebrow">CLEAR BOUNDARIES</p><h3>Built with care.</h3><p class="muted">{{ vault.connected.value ? 'Vault sessions and keys stay in memory. Changes are encrypted in Rust and sent to Vaultwarden.' : 'Explore samples, or connect securely in the desktop application.' }}</p>

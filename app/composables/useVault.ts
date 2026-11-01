@@ -188,6 +188,19 @@ export function useVault() {
       return true
     } catch (error) { notify(errorMessage(error, 'Could not open this HTTPS address.')); return false }
   }
+  async function openAndFill(item: VaultItem): Promise<boolean> {
+    if (locked.value || item.kind !== 'login' || !item.url) return false
+    if (!desktop.value || demo.value) { notify('Browser filling requires a connected desktop vault and the Veyra companion extension.'); return false }
+    const epoch = sessionEpoch.value
+    try {
+      notify('Opening website. Waiting for the Veyra companion…')
+      await invoke('begin_browser_fill', { itemId: item.id, expectedGeneration: session.value.generation })
+      if (locked.value || epoch !== sessionEpoch.value) return false
+      markUsed(item.id)
+      notify('Credentials filled by the Veyra companion. Review the form before signing in.')
+      return true
+    } catch (error) { notify(errorMessage(error, 'Could not fill credentials. Check the companion extension and destination.')); return false }
+  }
   async function showQuickAccess() {
     if (desktop.value) {
       try { await invoke('show_quick_access'); return true }
@@ -196,5 +209,5 @@ export function useVault() {
     return false
   }
   async function hideQuickAccess() { if (desktop.value) await invoke('hide_quick_access') }
-  return { session, locked, demo, connected, items, organizations, collections, folders, recent, feedback, syncing, mutating, needsSync, unsupportedItems, desktop, applySession, acceptWrite, changeItem, sessionChanged, initialize, login, unlock, lock, sync, copy, reveal, toggleFavorite, openWebsite, notify, showQuickAccess, hideQuickAccess, errorMessage }
+  return { session, locked, demo, connected, items, organizations, collections, folders, recent, feedback, syncing, mutating, needsSync, unsupportedItems, desktop, applySession, acceptWrite, changeItem, sessionChanged, initialize, login, unlock, lock, sync, copy, reveal, toggleFavorite, openWebsite, openAndFill, notify, showQuickAccess, hideQuickAccess, errorMessage }
 }

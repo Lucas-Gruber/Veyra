@@ -2,6 +2,7 @@
 import { Search, Plus, Star, Clock3, KeyRound, FileText, CreditCard, ContactRound, Layers, Trash2, Settings2, LockKeyhole, Command, CircleHelp, ArrowDownAZ, ArrowUpRight, ShieldCheck, X, Menu, Grid2X2, Check, RefreshCw } from '@lucide/vue'
 import { searchItems } from '~/utils/search'
 import { folderContainsItem } from '~/utils/folders'
+import { matchesShortcut } from '~/utils/shortcuts'
 import type { ItemKind, SessionStatus, VaultItem } from '~/types/vault'
 
 const vault = useVault()
@@ -72,34 +73,34 @@ function count(label: string) {
   return undefined
 }
 function onKeyboard(event: KeyboardEvent) {
-  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'l') { event.preventDefault(); void vault.lock(); return }
+  if (event.defaultPrevented) return
+  const matches = (action: Parameters<typeof matchesShortcut>[2]) => matchesShortcut(event, prefs.shortcuts, action)
+  if (matches('lock')) { event.preventDefault(); void vault.lock(); return }
   if (editorOpen.value) return
-  if (event.ctrlKey && event.altKey && event.code === 'Space') { event.preventDefault(); if (!settingsOpen.value) void openQuick(); return }
+  if (matches('openQuick')) { event.preventDefault(); if (!settingsOpen.value) void openQuick(); return }
   if (settingsOpen.value || quickOpen.value || quickStandalone.value) return
-  if (event.ctrlKey && event.key === ',') { event.preventDefault(); settingsOpen.value = true; return }
-  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); searchInput.value?.focus(); return }
-  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'l') { event.preventDefault(); void vault.lock(); return }
+  if (matches('settings')) { event.preventDefault(); settingsOpen.value = true; return }
+  if (matches('search')) { event.preventDefault(); searchInput.value?.focus(); return }
   if (event.key === 'Escape') { query.value = ''; hasSelected.value = false; return }
-  if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement || event.target instanceof HTMLTextAreaElement) return
+  if (event.target instanceof HTMLElement && (event.target.isContentEditable || event.target.closest('input, select, textarea'))) return
   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
     event.preventDefault()
     const index = filtered.value.findIndex(item => item.id === selected.value?.id)
     const next = filtered.value[(index + (event.key === 'ArrowDown' ? 1 : -1) + filtered.value.length) % filtered.value.length]
     if (next) selectItem(next.id)
+    return
   }
   if (!selected.value || vault.locked.value || selected.value.deleted) return
-  if (event.ctrlKey && !event.altKey) {
-    const key = event.key.toLowerCase()
-    const field = ({ u: 'username', p: 'password', o: 'totp' } as const)[key as 'u' | 'p' | 'o']
-    if (field) { event.preventDefault(); void vault.copy(selected.value.id, field) }
-    if (key === 'b') { event.preventDefault(); void vault.openWebsite(selected.value) }
-    if (key === 'd') { event.preventDefault(); vault.toggleFavorite(selected.value.id) }
-  }
+  const field = (['username', 'password', 'totp'] as const).find(matches)
+  if (field) { event.preventDefault(); void vault.copy(selected.value.id, field) }
+  else if (matches('website')) { event.preventDefault(); void vault.openWebsite(selected.value) }
+  else if (matches('favorite')) { event.preventDefault(); void vault.toggleFavorite(selected.value.id) }
 }
 let unlisten: (() => void)[] = []
 let media: MediaQueryList | undefined
 let stopAutomaticUpdateChecks: (() => void) | undefined
 function onSystemTheme(event: MediaQueryListEvent) { systemDark.value = event.matches }
+function onPreferencesChanged(event: StorageEvent) { if (event.key === 'veyra:preferences' || event.key === null) prefs.load() }
 onMounted(async () => {
   prefs.load()
   document.documentElement.style.fontSize = `${prefs.textSize}px`
@@ -110,7 +111,12 @@ onMounted(async () => {
   document.documentElement.classList.toggle('light', isLight.value)
   media.addEventListener('change', onSystemTheme)
   window.addEventListener('keydown', onKeyboard)
+  window.addEventListener('storage', onPreferencesChanged)
   if (vault.desktop.value) {
+    if (!quickStandalone.value) {
+      const { invoke } = await import('@tauri-apps/api/core')
+      void invoke('configure_quick_access_shortcut', { shortcut: prefs.shortcuts.openQuick }).catch(() => undefined)
+    }
     const { listen } = await import('@tauri-apps/api/event')
     unlisten = await Promise.all([
       listen<SessionStatus>('vault:locked', event => void vault.sessionChanged(event.payload)),
@@ -122,7 +128,7 @@ onMounted(async () => {
   // Subscribe before requesting the snapshot; useVault also guards against newer events.
   await vault.initialize()
 })
-onBeforeUnmount(() => { stopAutomaticUpdateChecks?.(); window.removeEventListener('keydown', onKeyboard); media?.removeEventListener('change', onSystemTheme); unlisten.forEach(fn => fn()) })
+onBeforeUnmount(() => { stopAutomaticUpdateChecks?.(); window.removeEventListener('keydown', onKeyboard); window.removeEventListener('storage', onPreferencesChanged); media?.removeEventListener('change', onSystemTheme); unlisten.forEach(fn => fn()) })
 </script>
 <template>
   <UApp>
@@ -136,7 +142,7 @@ onBeforeUnmount(() => { stopAutomaticUpdateChecks?.(); window.removeEventListene
             <div class="navigation-section"><button v-for="entry in nav" :key="entry.label" :class="['nav-item', { active: activeFolder === null && activeView === entry.label }]" @click="selectView(entry.label)"><component :is="entry.icon" :size="18" :stroke-width="1.7"/><span>{{ entry.label }}</span><span v-if="!vault.locked.value && count(entry.label)" class="nav-count">{{ count(entry.label) }}</span></button></div>
             <div class="navigation-section"><p class="nav-heading">YOUR VAULT</p><button v-for="entry in types" :key="entry.label" :class="['nav-item', { active: activeFolder === null && activeView === entry.label }]" @click="selectView(entry.label)"><component :is="entry.icon" :size="18" :stroke-width="1.7"/><span>{{ entry.label }}</span><span v-if="!vault.locked.value && count(entry.label)" class="nav-count">{{ count(entry.label) }}</span></button></div>
             <div class="navigation-section"><p class="nav-heading">ORGANIZE <button class="icon-button" aria-label="About folders" @click="vault.notify('Folders are synchronized from Vaultwarden. Creating or moving folders is not available in this preview.')"><Plus :size="14"/></button></p><FolderTree v-if="!vault.locked.value" :folders="vault.folders.value" :items="scopedItems" :selected-path="activeFolder" @select="selectFolder"/><button :class="['nav-item', { active: activeFolder === null && activeView === 'Collections' }]" @click="selectView('Collections')"><Layers :size="17" :stroke-width="1.7"/><span>Collections</span></button></div>
-            <div class="sidebar-bottom"><button :class="['nav-item', { active: activeFolder === null && activeView === 'Trash' }]" @click="selectView('Trash')"><Trash2 :size="17" :stroke-width="1.7"/><span>Trash</span></button><button class="nav-item" aria-label="Settings" @click="settingsOpen = true"><Settings2 :size="17" :stroke-width="1.7"/><span>Settings</span><kbd>Ctrl ,</kbd></button><div class="sidebar-divider"/><button class="quick-launch" @click="openQuick"><span class="quick-launch-icon"><Command :size="18"/></span><span><strong>Quick Access</strong><small>Your vault, a little closer.</small></span><ArrowUpRight :size="15"/></button><div class="sidebar-status"><span><ShieldCheck :size="13"/>{{ vault.locked.value ? 'Vault is locked' : vault.demo.value ? 'Demo vault · in memory' : 'Connected' }}</span><button v-if="!vault.locked.value" class="icon-button" aria-label="Lock vault" title="Lock vault · Ctrl L" @click="vault.lock"><LockKeyhole :size="15"/></button></div></div>
+            <div class="sidebar-bottom"><button :class="['nav-item', { active: activeFolder === null && activeView === 'Trash' }]" @click="selectView('Trash')"><Trash2 :size="17" :stroke-width="1.7"/><span>Trash</span></button><button class="nav-item" aria-label="Settings" @click="settingsOpen = true"><Settings2 :size="17" :stroke-width="1.7"/><span>Settings</span><kbd>{{ prefs.shortcuts.settings }}</kbd></button><div class="sidebar-divider"/><button class="quick-launch" @click="openQuick"><span class="quick-launch-icon"><Command :size="18"/></span><span><strong>Quick Access</strong><small>Your vault, a little closer.</small></span><ArrowUpRight :size="15"/></button><div class="sidebar-status"><span><ShieldCheck :size="13"/>{{ vault.locked.value ? 'Vault is locked' : vault.demo.value ? 'Demo vault · in memory' : 'Connected' }}</span><button v-if="!vault.locked.value" class="icon-button" aria-label="Lock vault" :title="`Lock vault · ${prefs.shortcuts.lock}`" @click="vault.lock"><LockKeyhole :size="15"/></button></div></div>
           </aside>
           <main :class="['workspace', { 'mobile-detail-open': hasSelected }]">
             <header class="workspace-header"><button class="icon-button mobile-menu" aria-label="Open navigation" @click="sidebarOpen = !sidebarOpen"><Menu :size="20"/></button><div class="breadcrumbs"><span>{{ vaultName }}</span><span>/</span><strong>{{ viewTitle }}</strong></div><div class="header-actions"><span class="demo-pill"><span/>{{ vault.connected.value ? 'Connected' : vault.demo.value ? 'Demo mode' : 'Not connected' }}</span><button class="icon-button" aria-label="About this preview" @click="vault.notify('Veyra integration preview · personal and organization vaults. Independent security review is pending; offline unlock is unavailable.')"><CircleHelp :size="18"/></button><span class="window-divider"/><button class="icon-button" aria-label="Open Quick Access" @click="openQuick"><Command :size="18"/></button></div></header>
@@ -148,7 +154,7 @@ onBeforeUnmount(() => { stopAutomaticUpdateChecks?.(); window.removeEventListene
               <div v-if="activeFolder === null && activeView === 'Collections'" class="collection-filters" aria-label="Collections"><button :aria-pressed="!activeCollection" @click="activeCollection = ''">All collections</button><button v-for="collection in scopedCollections" :key="collection.id" :aria-pressed="activeCollection === collection.id" @click="activeCollection = collection.id">{{ collection.name }}</button></div>
               <div class="vault-columns">
                 <section class="items-pane" aria-label="Vault items">
-                  <div class="list-controls"><div class="search-field"><Search :size="16"/><input ref="searchInput" v-model="query" placeholder="Search your vault…" aria-label="Search your vault" autocomplete="off" spellcheck="false"><kbd v-if="!query">Ctrl K</kbd><button v-else class="icon-button" aria-label="Clear search" @click="query = ''"><X :size="14"/></button></div><button class="icon-button sort-button" :title="sort === 'name' ? 'Sort by recently used' : 'Sort by name'" aria-label="Toggle sort order" @click="sort = sort === 'name' ? 'recent' : 'name'"><ArrowDownAZ :size="18"/></button></div>
+                  <div class="list-controls"><div class="search-field"><Search :size="16"/><input ref="searchInput" v-model="query" placeholder="Search your vault…" aria-label="Search your vault" autocomplete="off" spellcheck="false"><kbd v-if="!query">{{ prefs.shortcuts.search }}</kbd><button v-else class="icon-button" aria-label="Clear search" @click="query = ''"><X :size="14"/></button></div><button class="icon-button sort-button" :title="sort === 'name' ? 'Sort by recently used' : 'Sort by name'" aria-label="Toggle sort order" @click="sort = sort === 'name' ? 'recent' : 'name'"><ArrowDownAZ :size="18"/></button></div>
                   <div class="list-group-label"><span>{{ query ? 'SEARCH RESULTS' : activeFolder === null && activeView === 'All items' ? 'ALL ITEMS' : viewTitle.toUpperCase() }}</span><span>{{ sort === 'name' ? 'A – Z' : 'RECENT' }}</span></div>
                   <div class="item-list"><button v-for="item in filtered" :key="item.id" :class="['item-row', { selected: selected?.id === item.id }]" :aria-pressed="selected?.id === item.id" @click="selectItem(item.id)"><ItemIcon :item="item"/><span class="item-row-text"><strong>{{ item.name }}</strong><small>{{ item.username }}</small></span><Star v-if="item.favorite" :size="13" class="item-favorite" fill="currentColor"/><span v-if="selected?.id === item.id" class="selected-indicator"/></button>
                     <div v-if="!filtered.length" class="list-empty"><Search :size="27" :stroke-width="1.5"/><h3>{{ query ? 'Nothing here just yet.' : 'A little breathing room.' }}</h3><p>{{ query ? 'Try a different name or domain.' : activeView === 'Recently used' ? 'Copy a field or open a website to see it here.' : activeView === 'Collections' ? 'No accessible items in this collection.' : vault.demo.value ? 'This sample vault has no items in this view.' : 'No items in this view. Try All items or synchronize your vault.' }}</p></div>
@@ -160,7 +166,7 @@ onBeforeUnmount(() => { stopAutomaticUpdateChecks?.(); window.removeEventListene
             </template>
           </main>
         </div>
-        <footer class="app-statusbar"><span><span class="status-dot"/>Integration preview<span class="statusbar-divider">·</span>{{ vault.connected.value ? 'Connected in memory' : 'No server connected' }}</span><span><LockKeyhole :size="12"/>{{ vault.locked.value ? 'Locked · signed out' : vault.demo.value ? 'Synthetic data only' : 'No offline cache' }}<span class="statusbar-divider">·</span><button @click="openQuick">Quick Access <kbd>Ctrl Alt Space</kbd></button></span></footer>
+        <footer class="app-statusbar"><span><span class="status-dot"/>Integration preview<span class="statusbar-divider">·</span>{{ vault.connected.value ? 'Connected in memory' : 'No server connected' }}</span><span><LockKeyhole :size="12"/>{{ vault.locked.value ? 'Locked · signed out' : vault.demo.value ? 'Synthetic data only' : 'No offline cache' }}<span class="statusbar-divider">·</span><button @click="openQuick">Quick Access <kbd>{{ prefs.shortcuts.openQuick }}</kbd></button></span></footer>
         <QuickAccess v-if="quickOpen" @close="quickOpen = false" @open-item="openDetail"/>
         <SettingsDialog v-if="settingsOpen" @close="settingsOpen = false"/>
         <ItemEditor v-if="editorOpen" :item="editingItem" :organization-id="['all', 'personal'].includes(vaultScope) ? null : vaultScope" @close="editorOpen = false; editingItem = undefined" @saved="openDetail"/>
