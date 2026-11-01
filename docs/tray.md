@@ -43,23 +43,32 @@ settings. The Linux status query reads `IsStatusNotifierHostRegistered` on
 `org.kde.StatusNotifierWatcher` with a two-second timeout. A created icon and a
 registered host do not prove that a particular panel currently displays it.
 
-Flatpak grants `--talk-name=org.kde.StatusNotifierWatcher` and
-`--own-name=org.kde.StatusNotifierItem-*` for this integration, in addition to
-Veyra's existing launcher permissions. KSNI uses a process-specific name in this
-standard tray-item namespace. These permissions do not
-grant access to the whole session bus. The KSNI backend exports its icon pixels
-and menu over D-Bus, so no host-visible temporary icon file is required.
+Flatpak grants only `--talk-name=org.kde.StatusNotifierWatcher` for this
+integration, in addition to Veyra's existing launcher permissions. A minimal
+patch to the checksum-verified published crate enables KSNI's unique-name mode
+inside Flatpak. Native Linux retains its process-specific well-known name.
+The complete upstream package, licenses, checksum and patch description are in
+`src-tauri/vendor/tray-icon`. No tray-name ownership or unrestricted bus grant
+is needed. The KSNI backend exports icon pixels and its menu over D-Bus, so no
+host-visible temporary icon file is required. See Flatpak's
+[StatusNotifier permission documentation](https://docs.flatpak.org/en/latest/desktop-integration.html#statusnotifier).
 
 ## Validation and remaining limits
 
 Host detection and real KSNI item registration/icon export are tested on an
 isolated D-Bus with a synthetic StatusNotifier watcher and no display variables.
-The clipboard worker's shutdown acknowledgment can be tested without a
-display. Linux Rust compilation and tests check the native code and scoped IPC.
+An additional test places the actual tray backend behind `xdg-dbus-proxy
+--filter --talk=org.kde.StatusNotifierWatcher`, with no name-ownership grant.
+An external synthetic host verifies unique-name registration, icon pixels, the
+D-Bus menu interface and activation delivery. The clipboard worker's shutdown
+acknowledgment can be tested without a display. Linux Rust compilation and
+tests check the native code and scoped IPC.
 CI runs the isolated tray probe with
 `env -u DISPLAY -u WAYLAND_DISPLAY dbus-run-session -- cargo test --locked --manifest-path src-tauri/Cargo.toml tray_host_status -- --ignored`.
+The filtered-proxy test uses the same command with `tray_proxy_roundtrip` and
+requires `xdg-dbus-proxy`.
 These checks do not establish actual icon placement, menu delivery, compositor
-focus behavior, sandbox integration, or Windows/macOS compatibility. Those still
+focus behavior, an installed Flatpak's integration, or Windows/macOS compatibility. Those still
 need desktop smoke tests on each target platform. The macOS template source is
 `src-tauri/icons/tray-template.svg`; regenerate its PNG with
 `rsvg-convert src-tauri/icons/tray-template.svg -o src-tauri/icons/tray-template.png`.

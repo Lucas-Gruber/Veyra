@@ -49,6 +49,10 @@ tray-icon = { version = "=0.25.1", default-features = false, features = ["ksni"]
 [features]
 custom-protocol = ["tauri/custom-protocol"]
 
+[patch.crates-io]
+# Published 0.25.1, with only KSNI's documented Flatpak unique-name option set.
+tray-icon = { path = "vendor/tray-icon" }
+
 [profile.release]
 lto = "thin"
 codegen-units = 1

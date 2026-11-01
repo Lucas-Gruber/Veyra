@@ -35,4 +35,9 @@ The full GPL-3.0 license selected for Veyra and these SDK components is included
 in Veyra's `LICENSE` file. The quoted alternative-license notice does not select
 the alternative SDK license or grant rights to restricted components.
 
+Linux tray integration uses the published MIT/Apache-2.0 `tray-icon` 0.25.1
+package with a minimal Flatpak option patch. Its complete upstream package and
+licenses are preserved under `src-tauri/vendor/tray-icon`; `VEYRA-PATCH.md`
+records the exact source commit, verified archive checksum and sole source change.
+
 Other Rust and JavaScript libraries retain their own licenses and copyright notices. Dependency source, versions and integrity metadata are recorded by Cargo.lock and pnpm-lock.yaml. Tagged releases include Veyra source, build scripts, vendored Rust dependency sources and isolated pnpm package contents for the Linux x86_64/glibc target, preserving their license files. See `SOURCE-BUILD.md` in the archive, or `docs/source-build.md` in the repository, for rebuilding and the remaining online registry-metadata checks. Preserve third-party license files when redistributing. A dependency pin or the GPL choice does not imply upstream endorsement or a security guarantee.
