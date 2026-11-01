@@ -361,6 +361,9 @@ impl Vaultwarden {
         self.require_write_ready()?;
         let kind = draft.validate()?;
         let mut view = if let Some(id) = draft.id.as_ref() {
+            if self.management_unsupported.contains(id) {
+                return Err(VaultError::new("unsupported_fields", "This entry contains fields this SDK cannot preserve when editing. Use an official client to edit it without losing data."));
+            }
             let view = self.editable_view(id, false).await?;
             if draft.revision.as_deref() != Some(view.0.revision_date.to_rfc3339().as_str()) {
                 return Err(conflict());
@@ -555,34 +558,20 @@ impl Vaultwarden {
         request: ChangeItemRequest,
     ) -> Result<(String, bool), VaultError> {
         self.require_write_ready()?;
-        if !matches!(request.action, ChangeAction::Favorite) {
-            // The official soft-delete/restore endpoints have no revision CAS.
-            // Refresh permissions and detect existing conflicts before dispatch;
-            // an external write can still race this check on the server.
-            self.sync().await?;
-        }
+        // Partial favorite and soft-delete/restore endpoints have no revision CAS.
+        // Refresh permissions and detect existing conflicts before dispatch;
+        // an external write can still race this check on the server.
+        self.sync().await?;
         let mut view = self.editable_view(&request.id, true).await?;
         let v = &mut view.0;
         if request.revision != v.revision_date.to_rfc3339() {
             return Err(conflict());
         }
-        let endpoint = self
-            .server
-            .join(&format!("api/ciphers/{}", request.id))
-            .map_err(|_| invalid_response())?;
         match request.action {
             ChangeAction::Favorite if v.deleted_date.is_none() => {
-                v.favorite = request.favorite.ok_or_else(invalid_response)?;
-                let mut body: CipherRequestModel = self
-                    .client
-                    .vault()
-                    .ciphers()
-                    .encrypt(v.clone())
-                    .await
-                    .map_err(|_| decryption_error())?
-                    .into();
-                body.last_known_revision_date = Some(v.revision_date.to_rfc3339());
-                self.dispatch_write(self.http.put(endpoint).json(&body), true)
+                // Preserve future encrypted payload fields by only updating the
+                // per-user preference, never reserializing the cipher contents.
+                self.management_dispatch(self.http.put(self.server.join(&format!("api/ciphers/{}/partial", request.id)).map_err(|_| invalid_response())?).json(&serde_json::json!({"favorite": request.favorite.ok_or_else(invalid_response)?, "folderId": v.folder_id.map(|id| id.to_string())})))
                     .await?;
             }
             ChangeAction::Trash

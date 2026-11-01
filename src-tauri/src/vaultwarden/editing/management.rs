@@ -244,7 +244,7 @@ impl Vaultwarden {
         Ok(())
     }
 
-    async fn management_dispatch(
+    pub(super) async fn management_dispatch(
         &mut self,
         request: reqwest::RequestBuilder,
     ) -> Result<Value, VaultError> {
@@ -781,6 +781,86 @@ mod tests {
             vault.server = original_server;
             vault.sync().await.unwrap();
         }
+    }
+
+    #[tokio::test]
+    #[ignore = "requires dedicated disposable Vaultwarden fixtures"]
+    async fn actual_vaultwarden_unknown_encrypted_fields_block_editor_and_survive_favorites() {
+        let mut vault = fixture().await;
+        let (id, _) = vault
+            .save_item(super::super::tests::draft("login"))
+            .await
+            .unwrap();
+        let view = vault.editable_view(&id, false).await.unwrap();
+        let body: CipherRequestModel = vault
+            .client
+            .vault()
+            .ciphers()
+            .encrypt(view.0.clone())
+            .await
+            .unwrap()
+            .into();
+        let mut body = serde_json::to_value(body).unwrap();
+        let synthetic_encrypted = body["login"]["username"].clone();
+        body["login"]["futureEncryptedField"] = synthetic_encrypted.clone();
+        vault
+            .management_dispatch(
+                vault
+                    .http
+                    .put(vault.server.join(&format!("api/ciphers/{id}")).unwrap())
+                    .json(&body),
+            )
+            .await
+            .unwrap();
+        assert!(!vault.refresh_after_write().await.unwrap());
+        assert!(vault.management_unsupported.contains(&id));
+        let mut editor = vault.editable_item(&id, 0).await.unwrap().draft;
+        editor.name = "This save must not overwrite future fields".into();
+        assert!(
+            matches!(vault.save_item(editor).await, Err(error) if error.code == "unsupported_fields")
+        );
+        let revision = vault
+            .items
+            .iter()
+            .find(|item| item.id == id)
+            .unwrap()
+            .revision
+            .clone();
+        vault
+            .change_item(ChangeItemRequest {
+                id: id.clone(),
+                revision,
+                action: ChangeAction::Favorite,
+                favorite: Some(true),
+            })
+            .await
+            .unwrap();
+        assert!(
+            vault
+                .items
+                .iter()
+                .find(|item| item.id == id)
+                .unwrap()
+                .favorite
+        );
+        let response: Value = vault
+            .http
+            .get(vault.server.join(&format!("api/ciphers/{id}")).unwrap())
+            .bearer_auth(&*vault.access_token)
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        assert!(response["login"]["futureEncryptedField"] == synthetic_encrypted);
+        let first = reference(&vault, &id);
+        let (results, pending) = manage(&mut vault, vec![first], serde_json::json!({"type":"copy","organizationId":null,"collectionIds":[],"folderId":null})).await;
+        assert!(!pending && matches!(results[0].status, ManagementStatus::Failed));
+        assert_eq!(
+            results[0].error.as_ref().unwrap().code,
+            "migration_not_supported"
+        );
     }
 
     #[tokio::test]

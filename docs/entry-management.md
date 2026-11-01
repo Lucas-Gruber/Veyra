@@ -21,6 +21,12 @@ operation fails explicitly instead of silently dropping those fields; use an
 official client for those migrations. Moving within the same owner uses partial
 folder/collection assignment and does not re-encrypt payloads.
 
+Editor saves also reject existing entries whose payload fields cannot be
+preserved. Favorite changes synchronize first and use the partial endpoint, so
+unknown encrypted content remains intact. Partial preference endpoints cannot
+atomically compare revisions; their folder/favorite values can still race changes
+from another client after the local check.
+
 A personal entry moves into an organization through the authenticated share
 endpoint, keeping its ID. Vaultwarden does not allow changing an existing
 organization-owned entry to a different owner. That move creates a destination
@@ -52,6 +58,9 @@ are disposable synthetic fixtures; see
 [the fixture instructions](../tests/integration/README.md). Passing these checks
 does not approve a release or establish production security.
 
-Controlled write/sync responses also cover missing and content-mismatched
-destinations after accepted copies. They simulate failure states rather than
-claiming those failures were emitted by Vaultwarden itself.
+Additional live tests store a synthetic future encrypted login field on the
+dedicated server and verify that editor/copy operations reject it while favorite
+changes preserve it. Controlled write/sync responses also cover missing and
+content-mismatched destinations after accepted copies. These latter responses
+simulate failure states rather than claiming those failures were emitted by
+Vaultwarden itself.
