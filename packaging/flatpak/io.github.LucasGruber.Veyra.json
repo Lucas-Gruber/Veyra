@@ -4,7 +4,7 @@
   "runtime-version": "51",
   "sdk": "org.gnome.Sdk",
   "command": "veyra",
-  "default-branch": "beta",
+  "default-branch": "stable",
   "separate-locales": false,
   "finish-args": [
     "--share=network",
