@@ -97,6 +97,7 @@ export async function installConnectedVault(page: Page, folderFixture?: { folder
             return args?.handler
           }
           if (command === 'plugin:event|unlisten') return
+          if (command === 'load_login_preferences') return null
           if (command === 'hide_quick_access') return
           if (command === 'show_main_window' || command === 'open_main_item') return
           if (command === 'desktop_integration_status') return { tray: 'ready', message: 'Synthetic system tray ready.' }

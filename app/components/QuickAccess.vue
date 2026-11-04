@@ -16,7 +16,7 @@ let interactionEpoch = 0
 const actions = ref(false)
 const searchInput = ref<HTMLInputElement>()
 const dialog = ref<HTMLElement>()
-const loginForm = ref<{ clear: () => void }>()
+const loginForm = ref<{ clear: () => void; focus: () => void }>()
 let unlistenFocus: (() => void) | undefined
 let unlistenBlur: (() => void) | undefined
 let mounted = false
@@ -37,10 +37,8 @@ watch([vault.locked, () => vault.session.value.generation], () => {
 watch(selected, () => nextTick(() => document.querySelector('.quick-result.selected')?.scrollIntoView({ block: 'nearest' })))
 function focusInput() {
   if (!mounted || dismissed) return
-  const target = vault.locked.value
-    ? dialog.value?.querySelector<HTMLElement>('input:not([disabled]), .demo-entry button:not([disabled])')
-    : searchInput.value
-  target?.focus({ preventScroll: true })
+  if (vault.locked.value) loginForm.value?.focus()
+  else searchInput.value?.focus({ preventScroll: true })
 }
 function activate() {
   if (!mounted) return

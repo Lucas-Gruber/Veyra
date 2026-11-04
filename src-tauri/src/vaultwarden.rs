@@ -242,7 +242,7 @@ fn decryption_error() -> VaultError {
 }
 
 /// Server base URLs retain a possible subdirectory but may not carry credentials or queries.
-fn server_url(input: &str, allow_loopback: bool) -> Result<Url, VaultError> {
+pub(crate) fn server_url(input: &str, allow_loopback: bool) -> Result<Url, VaultError> {
     if input.len() > 2048 || input.chars().any(char::is_control) {
         return Err(VaultError::new(
             "invalid_server",

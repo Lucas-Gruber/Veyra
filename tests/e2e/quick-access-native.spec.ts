@@ -31,6 +31,8 @@ test('reused native Quick Access clears unsubmitted sign-in fields on blur and c
   await expect(password).toHaveValue('')
   const loginCalls = await page.evaluate(() => window.__VEYRA_UI_FIXTURE__.calls.filter(call => call.command === 'login_vault'))
   expect(loginCalls).toEqual([])
+  const preferencesWrites = await page.evaluate(() => window.__VEYRA_UI_FIXTURE__.calls.filter(call => call.command === 'save_login_preferences'))
+  expect(preferencesWrites).toEqual([])
   const storage = await page.evaluate(() => JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage } }))
   expect(storage).not.toMatch(/synthetic|example\.test|master-password/)
 })

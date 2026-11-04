@@ -1,6 +1,7 @@
 pub mod browser_bridge;
 mod clipboard;
 mod demo;
+mod login_preferences;
 mod quick_launch;
 mod session;
 mod shortcuts;
@@ -832,6 +833,9 @@ pub fn run() {
             browser_bridge::browser_companion_status,
             browser_bridge::begin_browser_fill,
             session_status,
+            login_preferences::load_login_preferences,
+            login_preferences::save_login_preferences,
+            login_preferences::clear_login_preferences,
             login_vault,
             unlock_demo,
             lock_vault,
