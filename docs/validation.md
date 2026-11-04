@@ -1,3 +1,20 @@
+# Quick Access search input focus — 2026-11-04
+
+Native activation now explicitly focuses the embedded WebView as well as its
+top-level window. WebKitGTK's WebView focus operation grabs keyboard input;
+window focus alone does not do that. The frontend also handles DOM window focus
+so the search/sign-in field is activated even if a native event preceded its
+listener registration. No repeated focus loop is added.
+
+The focused Chromium suite passed 13 focus/retention cases, including a new
+regression that types through the keyboard without clicking or filling the
+search field on initial opening and simulated WebView reactivation. Retained
+search and subsequent typing survive a later duplicate native focus event.
+TypeScript, ESLint, static generation, 47 frontend unit tests, Rust formatting,
+Clippy and 42 Rust unit tests passed; 14 environment/fixture cases remain ignored.
+These are synthetic UI/IPC contracts; actual compositor delivery still needs
+native desktop acceptance.
+
 # Quick Access focus and outside dismissal — 2026-11-01
 
 Quick Access activation now waits for the native window to be visible and

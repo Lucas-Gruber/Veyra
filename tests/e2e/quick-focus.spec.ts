@@ -72,3 +72,29 @@ test('native activation focuses the restored search or sign-in form', async ({ p
   await page.evaluate(() => window.__VEYRA_UI_FIXTURE__.emitQuickFocus())
   await expect(server).toBeFocused()
 })
+
+test('typing immediately reaches search on first open and WebView reactivation', async ({ page }) => {
+  await installConnectedVault(page)
+  await page.goto('/?window=quick')
+  const dialog = page.getByRole('dialog', { name: 'Quick Access', exact: true })
+  const search = dialog.getByRole('combobox')
+  await expect(search).toBeFocused()
+  // Type without locator.fill(), which would focus the field itself and mask
+  // a missing initial input focus.
+  await page.keyboard.type('Personal')
+  await expect(search).toHaveValue('Personal')
+  await expect.poll(() => page.evaluate(() => window.__VEYRA_UI_FIXTURE__.calls.some(call => call.command === 'plugin:event|listen' && call.args?.event === 'quick-access:blur'))).toBe(true)
+  await page.evaluate(() => window.__VEYRA_UI_FIXTURE__.emitQuickBlur())
+  await dialog.getByRole('button', { name: 'Open Veyra', exact: true }).focus()
+  // Exercise actual DOM focus delivery independently of the native IPC focus
+  // notification, which may precede listener registration in a new WebView.
+  await page.evaluate(() => window.dispatchEvent(new FocusEvent('focus')))
+  await expect(search).toBeFocused()
+  await expect(search).toHaveValue('Personal')
+  await page.keyboard.press('End')
+  await page.keyboard.type(' fixture')
+  await expect(search).toHaveValue('Personal fixture')
+  // A later native notification must not overwrite typing or restore twice.
+  await page.evaluate(() => window.__VEYRA_UI_FIXTURE__.emitQuickFocus())
+  await expect(search).toHaveValue('Personal fixture')
+})

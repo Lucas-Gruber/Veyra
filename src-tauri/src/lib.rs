@@ -637,7 +637,10 @@ async fn show_quick_access(app: tauri::AppHandle) -> Result<(), VaultError> {
         while !window.is_visible()? || window.is_minimized()? {
             tokio::time::sleep(std::time::Duration::from_millis(10)).await;
         }
-        window.set_focus()
+        window.set_focus()?;
+        // Focusing the top-level window alone does not give its embedded
+        // WebView keyboard input (notably with WebKitGTK).
+        window.as_ref().set_focus()
     })
     .await;
     if !matches!(activation, Ok(Ok(()))) {

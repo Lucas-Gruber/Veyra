@@ -61,6 +61,7 @@ function onWindowBlur() {
 }
 onMounted(async () => {
   mounted = true
+  window.addEventListener('focus', activate)
   window.addEventListener('blur', onWindowBlur)
   await nextTick()
   focusInput()
@@ -75,7 +76,7 @@ onMounted(async () => {
     else unlistenBlur = stopBlur
   }
 })
-onBeforeUnmount(() => { mounted = false; dismiss(); window.removeEventListener('blur', onWindowBlur); unlistenFocus?.(); unlistenBlur?.() })
+onBeforeUnmount(() => { mounted = false; dismiss(); window.removeEventListener('focus', activate); window.removeEventListener('blur', onWindowBlur); unlistenFocus?.(); unlistenBlur?.() })
 function reset() { query.value = ''; actions.value = false; selectedItemId.value = null; loginForm.value?.clear() }
 function dismiss() {
   if (!dismissed) {

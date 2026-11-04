@@ -28,9 +28,11 @@ The native main and Quick Access WebViews share one Rust session and metadata sn
 
 Native Quick Access fills its undecorated window with one surface and hides on
 native focus loss (including clicking another window). Opening restores it from
-minimization and requests focus after it is visible; the actual native focus
-event focuses search or the sign-in form. It stays above other windows while
-open. Activation errors hide it, and there is no repeated focus-stealing loop.
+minimization and requests focus for both the window and its embedded WebView
+after it is visible. Native and DOM focus events focus search or the sign-in
+form, so typing can start immediately without clicking the field. It stays above
+other windows while open. Activation errors hide it, and there is no repeated
+focus-stealing loop.
 The last search and selected entry ID are retained
 in WebView memory for 30 seconds after dismissal and restored when reopened within
 that period. Selection follows the ID across result reordering, and falls back
