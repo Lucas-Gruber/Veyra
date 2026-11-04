@@ -53,12 +53,23 @@ pub(crate) fn prepare() -> Result<Option<Startup>, &'static str> {
 }
 
 pub(crate) fn show(app: &tauri::AppHandle, launch: Launch) {
+    show_with_activation(app, launch, None);
+}
+
+pub(crate) fn show_with_activation(
+    app: &tauri::AppHandle,
+    launch: Launch,
+    activation_token: Option<String>,
+) {
     let app = app.clone();
     let handle = app.clone();
     let _ = handle.run_on_main_thread(move || match launch {
         Launch::QuickAccess => {
             tauri::async_runtime::spawn(async move {
-                if crate::show_quick_access(app).await.is_err() {
+                if crate::show_quick_access_with_activation(app, activation_token)
+                    .await
+                    .is_err()
+                {
                     eprintln!("The desktop could not show Veyra Quick Access.");
                 }
             });

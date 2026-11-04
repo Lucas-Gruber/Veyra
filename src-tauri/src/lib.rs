@@ -8,6 +8,7 @@ mod tray;
 mod updates;
 mod urls;
 mod vaultwarden;
+mod window_activation;
 
 use clipboard::ClipboardService;
 use serde::{Deserialize, Serialize};
@@ -586,6 +587,13 @@ async fn reveal_field(
 
 #[tauri::command]
 async fn show_quick_access(app: tauri::AppHandle) -> Result<(), VaultError> {
+    show_quick_access_with_activation(app, None).await
+}
+
+async fn show_quick_access_with_activation(
+    app: tauri::AppHandle,
+    activation_token: Option<String>,
+) -> Result<(), VaultError> {
     tray::require_running(&app)?;
     let window = if let Some(window) = app.get_webview_window("quick-access") {
         window
@@ -612,11 +620,15 @@ async fn show_quick_access(app: tauri::AppHandle) -> Result<(), VaultError> {
             )
         })?;
         let popup = window.clone();
+        let had_focus = std::sync::atomic::AtomicBool::new(false);
         window.on_window_event(move |event| match event {
             tauri::WindowEvent::Focused(true) => {
+                had_focus.store(true, std::sync::atomic::Ordering::Release);
                 let _ = popup.emit("quick-access:focus", ());
             }
-            tauri::WindowEvent::Focused(false) => {
+            tauri::WindowEvent::Focused(false)
+                if had_focus.swap(false, std::sync::atomic::Ordering::AcqRel) =>
+            {
                 let _ = popup.emit("quick-access:blur", ());
                 let _ = popup.hide();
             }
@@ -624,23 +636,15 @@ async fn show_quick_access(app: tauri::AppHandle) -> Result<(), VaultError> {
         });
         window
     };
-    window.show().map_err(|_| {
-        error(
-            "window_unavailable",
-            "Quick Access window could not be shown.",
-        )
-    })?;
     let activation = tokio::time::timeout(std::time::Duration::from_secs(1), async {
-        window.unminimize()?;
-        // GTK queues mapping/deiconifying separately. Its focus request is
-        // ignored while hidden or minimized, so let the event loop finish first.
-        while !window.is_visible()? || window.is_minimized()? {
+        window_activation::present(&window, activation_token).await?;
+        // Command dispatch returning Ok is not proof of compositor activation.
+        // Require actual top-level focus before assigning keyboard input.
+        while !window.is_focused()? {
             tokio::time::sleep(std::time::Duration::from_millis(10)).await;
         }
-        window.set_focus()?;
-        // Focusing the top-level window alone does not give its embedded
-        // WebView keyboard input (notably with WebKitGTK).
-        window.as_ref().set_focus()
+        window.as_ref().set_focus()?;
+        window.emit("quick-access:focus", ())
     })
     .await;
     if !matches!(activation, Ok(Ok(()))) {

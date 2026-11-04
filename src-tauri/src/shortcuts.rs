@@ -525,7 +525,11 @@ mod portal {
                         event = activated.next() => {
                             let Some(event) = event else { break; };
                             if !cancel.is_cancelled() && event.session_handle().as_str() == path && event.shortcut_id() == ACTION {
-                                crate::quick_launch::show(&app, crate::quick_launch::Launch::QuickAccess);
+                                let token = event.options().get("activation_token")
+                                    .and_then(|value| <&str>::try_from(value).ok())
+                                    .filter(|token| !token.is_empty() && token.len() <= 4096 && !token.chars().any(char::is_control))
+                                    .map(str::to_owned);
+                                crate::quick_launch::show_with_activation(&app, crate::quick_launch::Launch::QuickAccess, token);
                             }
                         }
                         event = changed.next() => {

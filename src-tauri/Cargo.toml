@@ -37,6 +37,9 @@ bitwarden-vault = { git = "https://github.com/bitwarden/sdk-internal", rev = "b8
 bitwarden-api-api = { git = "https://github.com/bitwarden/sdk-internal", rev = "b865d1db0025d9d12bea871a3a131c05aaeed205" }
 
 [target.'cfg(target_os = "linux")'.dependencies]
+gtk = "=0.18.2"
+gdkx11 = "=0.18.2"
+gdkwayland-sys = "=0.18.2"
 libc = "0.2"
 zbus = "=5.19.0"
 ashpd = { version = "=0.13.13", features = ["global_shortcuts"] }
