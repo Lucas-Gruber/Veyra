@@ -2,6 +2,8 @@
 
 ## 0.1.1 — unreleased
 
+- Remember submitted server URL/email in a private Rust configuration file, prefill both sign-in windows and allow forgetting them; passwords and 2FA codes remain transient.
+- Activate Quick Access on KDE/XWayland with a real X-server user timestamp and verify top-level focus before assigning keyboard input; forward Wayland portal activation tokens.
 - Personal and organization vaults; encrypted create/edit, favorites and reversible trash/restore for logins, secure notes, cards and identities.
 - Nested and empty folders, keyboard-accessible context menus, Shift-click multi-selection, folder/collection assignment, duplication and verified owner migration.
 - Configurable shortcuts with the requested clipboard defaults; dedicated website-open button in Quick Access.

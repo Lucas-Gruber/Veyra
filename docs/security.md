@@ -11,6 +11,7 @@ Veyra is an early integration preview and has not received independent security 
 | Keys and encrypted entries | Pinned official GPL Bitwarden crypto, explicit strict-decryption flag check; integrity failures reject the refresh |
 | IPC and frontend | Narrow local-window permissions; metadata projection excludes tokens, keys, passwords, seeds, notes and custom-field values; explicit field/content access; editor plaintext is transient component state only |
 | Password input | Transient form and IPC only, cleared after submit/unmount; moved into zeroizing native storage; never browser persistence |
+| Remembered sign-in identifiers | Only the submitted HTTPS server URL and account email in Rust's fixed app-config file, with private Unix permissions; no passwords/codes/tokens/keys or browser storage; explicit forgetting |
 | Lock/expiry/racing operations | Cancellation plus generation authority in Rust, keys/tokens cleared, metadata removed across both windows |
 | Clipboard | Native worker keeps ownership, clears after 30s only if unchanged; lock also requests conditional clear |
 | Untrusted vault metadata | Vue text rendering, bundled local icons, no remote favicon/content execution; HTTPS-only explicit website opening |

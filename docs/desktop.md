@@ -28,8 +28,13 @@ The native main and Quick Access WebViews share one Rust session and metadata sn
 
 Native Quick Access fills its undecorated window with one surface and hides on
 native focus loss (including clicking another window). Opening restores it from
-minimization and requests focus for both the window and its embedded WebView
-after it is visible. Native and DOM focus events focus search or the sign-in
+minimization and requests native activation. Linux X11/XWayland captures an
+X-server timestamp once for the user action and presents with that timestamp;
+Tao's `CURRENT_TIME` request can leave a visible popup inactive under KWin.
+Native Wayland forwards the portal's activation token through GTK's display
+startup-notification API. Portal timestamps are not cast to X11 timestamps.
+Veyra waits for actual top-level focus before assigning WebView keyboard input.
+Native and DOM focus events focus search or the sign-in
 form, so typing can start immediately without clicking the field. It stays above
 other windows while open. Activation errors hide it, and there is no repeated
 focus-stealing loop.
@@ -49,6 +54,13 @@ default). It opens the selected item in the main client or restores the main
 window while locked or without search results. Even long shortcut labels wrap
 within narrow windows.
 Compositor-specific focus delivery still requires desktop verification.
+
+Submitting sign-in remembers the server URL/email through Rust. Locking and
+Quick Access dismissal still clear passwords, 2FA codes and unsent edits; the
+next opening reloads the saved identifiers. With both identifiers available,
+the sign-in form focuses the master-password field after loading. The form's
+forget action removes saved identifiers from both windows. Delayed loads cannot
+refill or focus a dismissed form.
 
 Quick Access defaults to `Ctrl+Alt+Space` and can be rebound in Settings → Quick Access. Rust registers the accelerator through the Wayland GlobalShortcuts portal or the native X11 backend. Status reports registration failures and the actual portal trigger. `veyra --quick-access` also forwards to the running Linux instance or starts it with only Quick Access visible; it can be assigned manually in compositor settings. The floating window uses supported Tauri show/focus/position calls; a compositor may reject focus or placement. Global activation/focus remains unverified on the user's desktop. See [desktop shortcuts](shortcuts.md).
 

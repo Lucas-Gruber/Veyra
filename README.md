@@ -26,6 +26,11 @@ pnpm dev                  # Browser UI preview with clearly labeled sample data 
 
 Connect using your HTTPS server address in the desktop application. Passwords are transient form inputs passed to Rust; keys, tokens and cryptographic operations stay in Rust. Explicit reveals, contents and editor fields exist briefly in component memory; they never enter frontend stores or browser storage. The browser preview cannot connect to a real vault. The optional synthetic demo never substitutes for a failed real connection.
 
+Submitting sign-in remembers the server URL and account email locally through
+Rust, including after an incorrect password. Both windows prefill them on the
+next sign-in. **Forget saved sign-in details** removes them; passwords and 2FA
+codes are never saved. This does not provide offline unlock.
+
 ## Program information and versions
 
 Settings → About shows the actual native version, release channel, platform, architecture and license. Update checks contact the public GitHub release API when due at startup and daily while open; they can be disabled or triggered manually. Stable installations ignore prereleases. Browser preview performs no update requests. Checks do not install updates.

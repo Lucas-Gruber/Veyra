@@ -1,3 +1,46 @@
+# Remembered sign-in and native activation — 2026-11-04
+
+Server URL/email are now remembered in Rust's fixed app-config JSON file on
+submit, including failed authentication, and prefilled in both sign-in windows.
+They survive locking and restart until explicitly forgotten. No URL/email,
+password, 2FA code or vault key is written to browser storage; the persistence
+DTO accepts exactly the two identifier fields. Tests cover normalization,
+replace/delete, private Unix permissions, invalid/oversized files, symlinks,
+reload, shared-window updates, failure to save, and a late load after dismissal.
+
+The reported KDE/XWayland symptom was reproduced with real GTK3 windows in a
+private KWin virtual/Xwayland session, separate HOME/XDG directories and D-Bus.
+`present_with_time(CURRENT_TIME)` left the visible popup inactive. A single fresh
+X-server timestamp, user-time update and presentation activated it and its input
+widget. A second GTK process's normal activation then delivered FocusOut and
+hid the popup. The optional model diagnostic is
+`python3 tests/desktop/activation_probe/run.py`; it needs KWin, Xwayland and
+Python GI Gtk3/GdkX11. This is a GTK activation probe, not a full Veyra WebView
+smoke. The virtual compositor did not deliver XTest input, so physical typing
+and outside-pointer-click delivery were not established by this probe.
+
+The native implementation uses these same X11 activation APIs, forwards portal
+activation tokens for native Wayland, requires actual top-level focus before
+WebView keyboard focus, and discards an expired queued activation. Initial
+unfocused notifications do not dismiss a window that has not yet activated.
+Native Wayland tokens use GTK's display-level startup notification once;
+portal timestamps are never treated as X-server timestamps. There is no focus
+retry loop and no desktop focus-policy change. GTK/GDK direct dependencies use
+already locked published 0.18.2 packages; no dependency package/version or SDK
+edge changed.
+
+TypeScript, ESLint, static generation and all 47 frontend unit tests passed.
+The complete Chromium suite passed 61 cases. Rust formatting, Clippy and all
+46 unit tests passed; 14 environment/child-fixture cases remain explicitly
+ignored in the default run. The current native debug binaries built with
+generated static assets and `custom-protocol`. Audit-policy regression tests
+(18) and isolated launcher tests (four) also passed. A full disk interrupted an
+earlier Rust build; only this project's regenerable incremental compiler cache
+was removed, then the affected tests/build passed with incremental compilation
+disabled. Native Wayland portal activation, Windows/macOS
+and actual-user desktop input remain unverified. No release/version change or
+publication is part of these changes.
+
 # Quick Access search input focus — 2026-11-04
 
 Native activation now explicitly focuses the embedded WebView as well as its
