@@ -1,7 +1,7 @@
 [package]
 name = "veyra"
 default-run = "veyra"
-version = "0.1.1"
+version = "0.1.2"
 description = "Your vault. One shortcut away."
 authors = ["Veyra contributors"]
 edition = "2021"
